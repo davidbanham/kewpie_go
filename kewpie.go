@@ -3,16 +3,13 @@ package kewpie
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
-	"os"
 	"path"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/davidbanham/required_env"
 )
 
 var QueueNotFound = errors.New("I don't know any queue by that name")
@@ -37,30 +34,6 @@ func (t *Task) Marshal(source interface{}) (err error) {
 }
 
 var svc *sqs.SQS
-
-func init() {
-	required_env.Ensure(map[string]string{
-		"KEWPIE_PROVIDER": "",
-	})
-
-	switch os.Getenv("KEWPIE_PROVIDER") {
-	case "SQS":
-		required_env.Ensure(map[string]string{
-			"AWS_ACCESS_KEY_ID":     "",
-			"AWS_SECRET_ACCESS_KEY": "",
-		})
-	default:
-		panic(fmt.Errorf("KEWPIE_PROVIDER not recognised"))
-	}
-
-	// Create a session to share configuration, and load external configuration.
-	sess := session.Must(session.NewSession(&aws.Config{
-		Region: aws.String("ap-southeast-2"),
-	}))
-
-	// Create the service's client with the session.
-	svc = sqs.New(sess)
-}
 
 type Handler interface {
 	Handle(Task) (bool, error)
@@ -187,6 +160,13 @@ func deleteMessage(queueName string, message *sqs.Message) error {
 // FIXME This is currently a gross singleton. It should probably return a Kewpie type that has pub/sub methods.
 // It'll probably work fine as is, but won't support connecting to multiple URLs (which it currently ignores anyway since we're SQS only at this point)
 func Connect(url string, queues []string) (err error) {
+	sess := session.Must(session.NewSession(&aws.Config{
+		Region: aws.String("ap-southeast-2"),
+	}))
+
+	// Create the service's client with the session.
+	svc = sqs.New(sess)
+
 	params := sqs.ListQueuesInput{}
 	response, err := svc.ListQueues(&params)
 	if err != nil {

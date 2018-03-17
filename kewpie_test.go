@@ -1,6 +1,7 @@
 package kewpie
 
 import (
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -24,6 +25,7 @@ func init() {
 
 	err := Connect("sqs", []string{queueName})
 	if err != nil {
+		fmt.Printf("DEBUG err: %+v \n", err)
 		panic("Error connecting to queue")
 	}
 }
