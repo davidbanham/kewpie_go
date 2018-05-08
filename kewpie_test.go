@@ -16,6 +16,8 @@ type supDawg struct {
 
 var queueName string
 
+var kewpie Kewpie
+
 func init() {
 	required_env.Ensure(map[string]string{
 		"TEST_QUEUE_NAME": "",
@@ -23,7 +25,7 @@ func init() {
 
 	queueName = os.Getenv("TEST_QUEUE_NAME")
 
-	err := Connect("sqs", []string{queueName})
+	err := kewpie.Connect("sqs", []string{queueName})
 	if err != nil {
 		fmt.Printf("DEBUG err: %+v \n", err)
 		panic("Error connecting to queue")
@@ -90,9 +92,9 @@ func TestSubscribe(t *testing.T) {
 	if err != nil {
 		t.Fatal("Err in marshaling")
 	}
-	go Subscribe(queueName, handler)
-	Publish(queueName, pubTask1)
-	Publish(queueName, pubTask2)
+	go kewpie.Subscribe(queueName, handler)
+	kewpie.Publish(queueName, pubTask1)
+	kewpie.Publish(queueName, pubTask2)
 	time.Sleep(1 * time.Second)
 	if fired < 2 {
 		t.Fatal("Didn't fire enough")
