@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"path"
+	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -16,6 +17,8 @@ var QueueNotFound = errors.New("I don't know any queue by that name")
 
 const TWENTY_SECONDS = int64(20)
 const FIFTEEN_MINUTES = (15 * time.Minute)
+const BACKOFF_INTERVAL = TWENTY_SECONDS
+const BACKOFF_CAP = int64(6 * time.Hour)
 
 type Kewpie struct {
 	url  string
@@ -24,8 +27,10 @@ type Kewpie struct {
 }
 
 type Task struct {
-	Body  string
-	Delay time.Duration
+	Body         string
+	Delay        time.Duration
+	NoExpBackoff bool
+	Attempts     int
 }
 
 func (t Task) Unmarshal(res interface{}) (err error) {
@@ -62,12 +67,25 @@ func (this Kewpie) Publish(queueName string, payload Task) (err error) {
 
 	delay := int64(roundTo15(payload.Delay).Seconds())
 
+	noExpBackoff := "false"
+	if payload.NoExpBackoff {
+		noExpBackoff = "true"
+	}
+
 	message := sqs.SendMessageInput{
 		DelaySeconds: &delay,
 		MessageAttributes: map[string]*sqs.MessageAttributeValue{
 			"RunAt": &sqs.MessageAttributeValue{
 				DataType:    aws.String("String"),
 				StringValue: aws.String(runAt.UTC().Format(time.RFC3339)),
+			},
+			"NoExpBackoff": &sqs.MessageAttributeValue{
+				DataType:    aws.String("String"),
+				StringValue: aws.String(noExpBackoff),
+			},
+			"Attempts": &sqs.MessageAttributeValue{
+				DataType:    aws.String("Number"),
+				StringValue: aws.String("0"),
 			},
 		},
 		MessageBody: &payload.Body,
@@ -93,6 +111,7 @@ func (this Kewpie) Subscribe(queueName string, handler Handler) (err error) {
 		WaitTimeSeconds:   &twentySeconds,
 		MessageAttributeNames: []*string{
 			aws.String("RunAt"),
+			aws.String("NoExpBackoff"),
 		},
 	}
 	response, err := this.svc.ReceiveMessage(&params)
@@ -108,10 +127,27 @@ func (this Kewpie) Subscribe(queueName string, handler Handler) (err error) {
 		log.Println("DEBUG kewpie Received task from queue", queueName, task)
 
 		runAtPtr := message.MessageAttributes["RunAt"]
+		attemptsPtr := message.MessageAttributes["Attempts"]
+		attempts := 0
+		noExpBackoffPtr := message.MessageAttributes["NoExpBackoff"]
+		noExpBackoff := false
 
 		if runAtPtr == nil {
 			log.Println("ERROR kewpie", queueName, "RunAt was nil", message)
 			continue
+		}
+
+		if noExpBackoffPtr != nil && noExpBackoffPtr.String() == "true" {
+			noExpBackoff = true
+		}
+
+		if attemptsPtr != nil {
+			parsed, err := strconv.Atoi(attemptsPtr.String())
+			if err != nil {
+				log.Println("ERROR kewpie", queueName, "Attempts was not an int", message, err)
+				continue
+			}
+			attempts = parsed
 		}
 
 		runAtString := *runAtPtr.StringValue
@@ -122,26 +158,41 @@ func (this Kewpie) Subscribe(queueName string, handler Handler) (err error) {
 			continue
 		}
 		now := time.Now()
+		// Check if the task should run now or in the future
+		// Some queues have a max delay. This allows us to just republish a message with a longer delay than the max.
 		// Knock runAt back 1s to avoid off-by-one error on comparison
 		if now.Before(runAt.Add(-time.Second)) {
 			task.Delay = runAt.Sub(time.Now())
 			log.Println("DEBUG kewpie", queueName, "Republishing task", task)
-			this.Publish(queueName, task)
+			if err := this.Publish(queueName, task); err != nil {
+				log.Println("ERROR kewpie", queueName, "Error republishing task", task)
+			}
 			this.deleteMessage(queueName, message)
 			continue
 		}
 		requeue, err := handler.Handle(task)
 		log.Println("INFO kewpie", queueName, "Task completed on queue", queueName, err, requeue)
 		log.Println("DEBUG kewpie", queueName, "Task completed on queue", queueName, task, err, requeue)
+
 		delete := true
+
 		if err != nil {
 			log.Println("ERROR kewpie", queueName, "Task failed on queue", queueName, task, err, requeue)
 			delete = !requeue
+			if !delete && !noExpBackoff {
+				task.Delay, err = calcBackoff(attempts)
+				if err != nil {
+					log.Println("ERROR kewpie", queueName, "Failed to calc backoff", queueName, task, err)
+					continue
+				}
+				this.Publish(queueName, task)
+				delete = true
+			}
 		}
+
 		if delete {
 			this.deleteMessage(queueName, message)
 		}
-		// FIXME back off failing messages
 	}
 	return this.Subscribe(queueName, handler)
 }
@@ -217,5 +268,26 @@ func (this *Kewpie) Connect(url string, queues []string) (err error) {
 			this.urls[name] = *result.QueueUrl
 		}
 	}
+	return
+}
+
+func calcBackoff(attempts int) (delay time.Duration, err error) {
+	backoffDelay := BACKOFF_INTERVAL
+
+	for i := 1; i < attempts; i++ {
+		backoffDelay = backoffDelay * 2
+		if backoffDelay > BACKOFF_CAP {
+			backoffDelay = BACKOFF_CAP
+			break
+		}
+	}
+
+	backoffDelayDuration, err := time.ParseDuration(strconv.Itoa(int(backoffDelay)) + "s")
+
+	if err != nil {
+		return delay, err
+	}
+	runAt := time.Now().Add(backoffDelayDuration)
+	delay = time.Now().Sub(runAt)
 	return
 }
