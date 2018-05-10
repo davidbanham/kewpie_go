@@ -1,6 +1,7 @@
 package kewpie
 
 import (
+	"github.com/davidbanham/kewpie_go/backends/memory"
 	"github.com/davidbanham/kewpie_go/backends/sqs"
 	"github.com/davidbanham/kewpie_go/types"
 )
@@ -31,8 +32,8 @@ func (this *Kewpie) Connect(backend string, queues []string) (err error) {
 	this.queues = queues
 
 	switch backend {
-	case "test":
-		return
+	case "memory":
+		this.backend = &memory.MemoryStore{}
 	case "sqs":
 		this.backend = &sqs.Sqs{}
 	}
