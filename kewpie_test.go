@@ -6,8 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davidbanham/kewpie_go/types"
 	"github.com/davidbanham/required_env"
 	"github.com/satori/go.uuid"
+	"github.com/stretchr/testify/assert"
 )
 
 type supDawg struct {
@@ -33,7 +35,7 @@ func init() {
 }
 
 func TestUnmarshal(t *testing.T) {
-	task := Task{
+	task := types.Task{
 		Body: `{"Sup": "woof"}`,
 	}
 
@@ -49,10 +51,10 @@ func TestUnmarshal(t *testing.T) {
 type testHandler struct {
 	fired      bool
 	supText    string
-	handleFunc func(Task) (bool, error)
+	handleFunc func(types.Task) (bool, error)
 }
 
-func (h *testHandler) Handle(t Task) (bool, error) {
+func (h *testHandler) Handle(t types.Task) (bool, error) {
 	return h.handleFunc(t)
 }
 
@@ -64,7 +66,7 @@ func TestSubscribe(t *testing.T) {
 	match2 := false
 
 	handler := &testHandler{
-		handleFunc: func(task Task) (requeue bool, err error) {
+		handleFunc: func(task types.Task) (requeue bool, err error) {
 			fired = fired + 1
 			monty := supDawg{}
 			task.Unmarshal(&monty)
@@ -78,14 +80,14 @@ func TestSubscribe(t *testing.T) {
 			return false, nil
 		},
 	}
-	pubTask1 := Task{}
+	pubTask1 := types.Task{}
 	err := pubTask1.Marshal(supDawg{
 		Sup: uniq1,
 	})
 	if err != nil {
 		t.Fatal("Err in marshaling")
 	}
-	pubTask2 := Task{}
+	pubTask2 := types.Task{}
 	err = pubTask2.Marshal(supDawg{
 		Sup: uniq2,
 	})
@@ -93,8 +95,8 @@ func TestSubscribe(t *testing.T) {
 		t.Fatal("Err in marshaling")
 	}
 	go kewpie.Subscribe(queueName, handler)
-	kewpie.Publish(queueName, pubTask1)
-	kewpie.Publish(queueName, pubTask2)
+	assert.Nil(t, kewpie.Publish(queueName, pubTask1))
+	assert.Nil(t, kewpie.Publish(queueName, pubTask2))
 	time.Sleep(1 * time.Second)
 	if fired < 2 {
 		t.Fatal("Didn't fire enough")
@@ -103,23 +105,5 @@ func TestSubscribe(t *testing.T) {
 		if !match2 {
 			t.Fatal("Didn't match either uniq code")
 		}
-	}
-}
-
-func TestCalcDelay(t *testing.T) {
-	// It should round long delays to 15 minutes
-	originalLongDelay := time.Duration(45 * time.Minute)
-	longDelay := roundTo15(originalLongDelay)
-	if longDelay != 900*time.Second {
-		t.Log("longDelay is", longDelay)
-		t.Fatal("longDelay is not 15 minutes")
-	}
-
-	// It should not round delays shorter than 15 minutes
-	originalShortDelay := time.Duration(6 * time.Minute)
-	shortDelay := roundTo15(originalShortDelay)
-	if shortDelay != originalShortDelay {
-		t.Log("shortDelay is", shortDelay, originalShortDelay)
-		t.Fatal("shortDelay was changed")
 	}
 }
