@@ -1,6 +1,8 @@
 package kewpie
 
 import (
+	"time"
+
 	"github.com/davidbanham/kewpie_go/backends/memory"
 	"github.com/davidbanham/kewpie_go/backends/sqs"
 	"github.com/davidbanham/kewpie_go/types"
@@ -18,6 +20,15 @@ type Backend interface {
 }
 
 func (this Kewpie) Publish(queueName string, payload types.Task) (err error) {
+	// If Delay is blank, but RunAt is set, populate Delay with info from RunAt
+	blankTime := time.Time{}
+	if payload.Delay == 0 && payload.RunAt != blankTime {
+		payload.Delay = time.Now().Sub(payload.RunAt)
+	}
+
+	// Set RunAt based on the info from Delay
+	payload.RunAt = time.Now().Add(payload.Delay)
+
 	err = this.backend.Publish(queueName, payload)
 
 	return

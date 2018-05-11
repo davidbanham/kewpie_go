@@ -8,7 +8,8 @@ import (
 
 type Task struct {
 	Body         string
-	Delay        time.Duration
+	Delay        time.Duration // Delay overrides RunAt
+	RunAt        time.Time
 	NoExpBackoff bool
 	Attempts     int
 }
