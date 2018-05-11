@@ -13,6 +13,8 @@ type Kewpie struct {
 	backend Backend
 }
 
+type Task = types.Task
+
 type Backend interface {
 	Publish(queueName string, payload types.Task) error
 	Subscribe(queueName string, handler types.Handler) error
