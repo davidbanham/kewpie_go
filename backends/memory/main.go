@@ -2,10 +2,14 @@ package memory
 
 import (
 	"log"
+	"time"
 
 	"github.com/davidbanham/kewpie_go/types"
 )
 
+// MemoryStore is intended for use in test suites.
+// No data is persisted, so as soon as the process exits all the tasks vanish
+// It's written for simplicity over efficiency, so don't expect it to be performant
 type MemoryStore struct {
 	tasks map[string][]types.Task
 }
@@ -31,6 +35,12 @@ func (this *MemoryStore) Subscribe(queueName string, handler types.Handler) erro
 			}
 			task := this.tasks[queueName][0]
 			this.tasks[queueName] = append(this.tasks[queueName][:0], this.tasks[queueName][1:]...)
+
+			// Chuck it back on the end of the queue if it's not due to run yet
+			if time.Now().Before(task.RunAt) {
+				this.tasks[queueName] = append(this.tasks[queueName], task)
+				continue
+			}
 
 			requeue, err := handler.Handle(task)
 			if err != nil {
