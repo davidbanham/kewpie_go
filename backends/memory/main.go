@@ -31,6 +31,7 @@ func (this *MemoryStore) Subscribe(queueName string, handler types.Handler) erro
 	go func() {
 		for {
 			if len(this.tasks[queueName]) == 0 {
+				time.Sleep(1 * time.Second)
 				continue
 			}
 			task := this.tasks[queueName][0]
@@ -39,6 +40,7 @@ func (this *MemoryStore) Subscribe(queueName string, handler types.Handler) erro
 			// Chuck it back on the end of the queue if it's not due to run yet
 			if time.Now().Before(task.RunAt) {
 				this.tasks[queueName] = append(this.tasks[queueName], task)
+				time.Sleep(1 * time.Second)
 				continue
 			}
 
