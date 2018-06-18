@@ -1,6 +1,7 @@
 package kewpie
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/davidbanham/kewpie_go/backends/memory"
@@ -49,6 +50,8 @@ func (this *Kewpie) Connect(backend string, queues []string) (err error) {
 		this.backend = &memory.MemoryStore{}
 	case "sqs":
 		this.backend = &sqs.Sqs{}
+	default:
+		return fmt.Errorf("Unknown backend")
 	}
 
 	err = this.backend.Init(queues)
