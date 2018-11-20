@@ -12,7 +12,8 @@ import (
 // No data is persisted, so as soon as the process exits all the tasks vanish
 // It's written for simplicity over efficiency, so don't expect it to be performant
 type MemoryStore struct {
-	tasks map[string][]types.Task
+	tasks  map[string][]types.Task
+	closed bool
 }
 
 func (this *MemoryStore) Publish(ctx context.Context, queueName string, payload types.Task) (err error) {
@@ -25,6 +26,10 @@ func (this *MemoryStore) Publish(ctx context.Context, queueName string, payload 
 }
 
 func (this *MemoryStore) Subscribe(ctx context.Context, queueName string, handler types.Handler) error {
+	if this.closed {
+		return nil
+	}
+
 	if this.tasks[queueName] == nil {
 		return types.QueueNotFound
 	}
@@ -49,6 +54,7 @@ func (this *MemoryStore) Subscribe(ctx context.Context, queueName string, handle
 			if err != nil {
 				log.Println("ERROR kewpie task handler", err)
 				if requeue {
+					task.Attempts += 1
 					this.tasks[queueName] = append(this.tasks[queueName], task)
 				}
 			}
@@ -62,5 +68,10 @@ func (this *MemoryStore) Init(queues []string) error {
 	for _, name := range queues {
 		this.tasks[name] = []types.Task{}
 	}
+	return nil
+}
+
+func (this *MemoryStore) Disconnect() error {
+	this.closed = true
 	return nil
 }

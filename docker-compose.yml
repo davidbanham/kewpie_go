@@ -1,0 +1,9 @@
+version: "2"
+services:
+  postgresql:
+    image: postgres:9.6
+    command: postgres
+    volumes:
+      - ./config/database:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"

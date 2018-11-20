@@ -15,8 +15,9 @@ import (
 )
 
 type Sqs struct {
-	urls map[string]string
-	svc  *sqs.SQS
+	urls   map[string]string
+	svc    *sqs.SQS
+	closed bool
 }
 
 const FIFTEEN_MINUTES = (15 * time.Minute)
@@ -70,6 +71,10 @@ func (this Sqs) Publish(ctx context.Context, queueName string, payload types.Tas
 }
 
 func (this Sqs) Subscribe(ctx context.Context, queueName string, handler types.Handler) (err error) {
+	if this.closed {
+		return nil
+	}
+
 	url := this.urls[queueName]
 	if url == "" {
 		err = types.QueueNotFound
@@ -153,11 +158,14 @@ func (this Sqs) Subscribe(ctx context.Context, queueName string, handler types.H
 		if err != nil {
 			log.Println("ERROR kewpie", queueName, "Task failed on queue", queueName, task, err, requeue)
 			delete = !requeue
-			if !delete && !noExpBackoff {
-				task.Delay, err = util.CalcBackoff(attempts)
-				if err != nil {
-					log.Println("ERROR kewpie", queueName, "Failed to calc backoff", queueName, task, err)
-					continue
+			if requeue {
+				task.Attempts += 1
+				if !noExpBackoff {
+					task.Delay, err = util.CalcBackoff(attempts)
+					if err != nil {
+						log.Println("ERROR kewpie", queueName, "Failed to calc backoff", queueName, task, err)
+						continue
+					}
 				}
 				this.Publish(ctx, queueName, task)
 				delete = true
@@ -168,6 +176,7 @@ func (this Sqs) Subscribe(ctx context.Context, queueName string, handler types.H
 			this.deleteMessage(queueName, message)
 		}
 	}
+
 	return this.Subscribe(ctx, queueName, handler)
 }
 
@@ -237,4 +246,9 @@ func (this Sqs) deleteMessage(queueName string, message *sqs.Message) error {
 		log.Println("ERROR kewpie", queueName, "Error deleting message!", err)
 	}
 	return err
+}
+
+func (this *Sqs) Disconnect() error {
+	this.closed = true
+	return nil
 }

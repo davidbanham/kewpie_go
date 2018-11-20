@@ -3,7 +3,6 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -21,7 +20,8 @@ type Querier interface {
 }
 
 type Postgres struct {
-	db *sql.DB
+	db     *sql.DB
+	closed bool
 }
 
 func (this Postgres) Publish(ctx context.Context, queueName string, payload types.Task) error {
@@ -56,18 +56,30 @@ func (this Postgres) Publish(ctx context.Context, queueName string, payload type
 		return err
 	}
 
-	fmt.Printf("DEBUG err: %+v \n", nil)
 	return nil
 }
 
 func (this Postgres) Subscribe(ctx context.Context, queueName string, handler types.Handler) error {
-	if ctx.Value("tx") == nil {
-		ctx = context.WithValue(ctx, "tx", this.db)
+	if this.closed {
+		return nil
 	}
 
-	db := ctx.Value("tx").(Querier)
+	var tx *sql.Tx
 
-	tx, err := db.BeginTx(ctx, nil)
+	if ctx.Value("tx") == nil {
+		var err error
+		tx, err = this.db.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+	} else {
+		db := ctx.Value("tx").(Querier)
+		var err error
+		tx, err = db.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+	}
 
 	tableName := nameToTable(queueName)
 
@@ -75,7 +87,7 @@ func (this Postgres) Subscribe(ctx context.Context, queueName string, handler ty
 WHERE id = (
   SELECT id FROM `+tableName+`
 	WHERE run_at < NOW()
-  ORDER BY created_at
+  ORDER BY created_at, attempts ASC
   FOR UPDATE SKIP LOCKED 
   LIMIT 1
 )
@@ -84,6 +96,10 @@ RETURNING id, body, delay, run_at, no_exp_backoff, attempts`)
 	task := types.Task{}
 	var id string
 	if err := row.Scan(&id, &task.Body, &task.Delay, &task.RunAt, &task.NoExpBackoff, &task.Attempts); err != nil {
+		if err == sql.ErrNoRows {
+			time.Sleep(1 * time.Second)
+			return this.Subscribe(ctx, queueName, handler)
+		}
 		return err
 	}
 
@@ -93,6 +109,7 @@ RETURNING id, body, delay, run_at, no_exp_backoff, attempts`)
 
 	if err != nil {
 		if requeue {
+			task.Attempts += 1
 			if !task.NoExpBackoff {
 				task.Delay, err = util.CalcBackoff(task.Attempts + 1)
 				if err != nil {
@@ -100,7 +117,8 @@ RETURNING id, body, delay, run_at, no_exp_backoff, attempts`)
 					return err
 				}
 			}
-			if err := this.Publish(ctx, queueName, task); err != nil {
+			subCtx := context.WithValue(ctx, "tx", this.db)
+			if err := this.Publish(subCtx, queueName, task); err != nil {
 				return err
 			}
 		}
@@ -144,6 +162,14 @@ attempts int NOT NULL DEFAULT 0
 	return nil
 }
 
+func (this *Postgres) Disconnect() error {
+	this.closed = true
+	return this.db.Close()
+}
+
 func nameToTable(name string) string {
-	return "kewpie_" + strings.Replace(strings.ToLower(name), " ", "_", -1)
+	name = strings.Replace(name, " ", "_", -1) // no spaces
+	name = strings.Replace(name, "-", "_", -1) // no dashes
+	name = strings.ToLower(name)               // lower case
+	return "kewpie_" + name
 }
