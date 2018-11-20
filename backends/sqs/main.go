@@ -1,7 +1,7 @@
 package sqs
 
 import (
-	"fmt"
+	"context"
 	"log"
 	"path"
 	"strconv"
@@ -21,10 +21,6 @@ type Sqs struct {
 
 const FIFTEEN_MINUTES = (15 * time.Minute)
 
-func main() {
-	fmt.Println("vim-go")
-}
-
 func roundTo15(orig time.Duration) time.Duration {
 	if orig > FIFTEEN_MINUTES {
 		return time.Duration(FIFTEEN_MINUTES)
@@ -32,7 +28,7 @@ func roundTo15(orig time.Duration) time.Duration {
 	return orig
 }
 
-func (this Sqs) Publish(queueName string, payload types.Task) (err error) {
+func (this Sqs) Publish(ctx context.Context, queueName string, payload types.Task) (err error) {
 	url := this.urls[queueName]
 	if url == "" {
 		err = types.QueueNotFound
@@ -73,7 +69,7 @@ func (this Sqs) Publish(queueName string, payload types.Task) (err error) {
 	return
 }
 
-func (this Sqs) Subscribe(queueName string, handler types.Handler) (err error) {
+func (this Sqs) Subscribe(ctx context.Context, queueName string, handler types.Handler) (err error) {
 	url := this.urls[queueName]
 	if url == "" {
 		err = types.QueueNotFound
@@ -142,7 +138,7 @@ func (this Sqs) Subscribe(queueName string, handler types.Handler) (err error) {
 		if now.Before(runAt.Add(-time.Second)) {
 			task.Delay = runAt.Sub(time.Now())
 			log.Println("DEBUG kewpie", queueName, "Republishing task", task)
-			if err := this.Publish(queueName, task); err != nil {
+			if err := this.Publish(ctx, queueName, task); err != nil {
 				log.Println("ERROR kewpie", queueName, "Error republishing task", task)
 			}
 			this.deleteMessage(queueName, message)
@@ -163,7 +159,7 @@ func (this Sqs) Subscribe(queueName string, handler types.Handler) (err error) {
 					log.Println("ERROR kewpie", queueName, "Failed to calc backoff", queueName, task, err)
 					continue
 				}
-				this.Publish(queueName, task)
+				this.Publish(ctx, queueName, task)
 				delete = true
 			}
 		}
@@ -172,7 +168,7 @@ func (this Sqs) Subscribe(queueName string, handler types.Handler) (err error) {
 			this.deleteMessage(queueName, message)
 		}
 	}
-	return this.Subscribe(queueName, handler)
+	return this.Subscribe(ctx, queueName, handler)
 }
 
 func (this *Sqs) Init(queues []string) (err error) {

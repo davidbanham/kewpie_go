@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"log"
 	"time"
 
@@ -14,7 +15,7 @@ type MemoryStore struct {
 	tasks map[string][]types.Task
 }
 
-func (this *MemoryStore) Publish(queueName string, payload types.Task) (err error) {
+func (this *MemoryStore) Publish(ctx context.Context, queueName string, payload types.Task) (err error) {
 	if this.tasks[queueName] == nil {
 		return types.QueueNotFound
 	}
@@ -23,7 +24,7 @@ func (this *MemoryStore) Publish(queueName string, payload types.Task) (err erro
 	return
 }
 
-func (this *MemoryStore) Subscribe(queueName string, handler types.Handler) error {
+func (this *MemoryStore) Subscribe(ctx context.Context, queueName string, handler types.Handler) error {
 	if this.tasks[queueName] == nil {
 		return types.QueueNotFound
 	}

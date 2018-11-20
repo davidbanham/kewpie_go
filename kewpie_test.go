@@ -1,6 +1,7 @@
 package kewpie
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"testing"
@@ -52,7 +53,7 @@ func (h *testHandler) Handle(t types.Task) (bool, error) {
 
 func TestSubscribe(t *testing.T) {
 
-	for _, backend := range []string{"memory", "sqs"} {
+	for _, backend := range []string{"memory", "sqs", "postgres"} {
 
 		kewpie := Kewpie{}
 
@@ -96,9 +97,11 @@ func TestSubscribe(t *testing.T) {
 		if err != nil {
 			t.Fatal("Err in marshaling")
 		}
-		go kewpie.Subscribe(queueName, handler)
-		assert.Nil(t, kewpie.Publish(queueName, pubTask1))
-		assert.Nil(t, kewpie.Publish(queueName, pubTask2))
+
+		ctx := context.Background()
+		go kewpie.Subscribe(ctx, queueName, handler)
+		assert.Nil(t, kewpie.Publish(ctx, queueName, pubTask1))
+		assert.Nil(t, kewpie.Publish(ctx, queueName, pubTask2))
 		time.Sleep(1 * time.Second)
 		if fired < 2 {
 			t.Fatal("Didn't fire enough")
