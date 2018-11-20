@@ -16,7 +16,9 @@ import (
 )
 
 type Querier interface {
-	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
+	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
 }
 
 type Postgres struct {
@@ -31,17 +33,12 @@ func (this Postgres) Publish(ctx context.Context, queueName string, payload type
 
 	db := ctx.Value("tx").(Querier)
 
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-
 	payload.RunAt = time.Now().Add(payload.Delay)
 
 	id := uuid.NewV4().String()
 	tableName := nameToTable(queueName)
 
-	if _, err := tx.ExecContext(ctx, "INSERT INTO "+tableName+" (id, body, delay, run_at, no_exp_backoff, attempts) VALUES ($1, $2, $3, $4, $5, $6)",
+	if _, err := db.ExecContext(ctx, "INSERT INTO "+tableName+" (id, body, delay, run_at, no_exp_backoff, attempts) VALUES ($1, $2, $3, $4, $5, $6)",
 		id,
 		payload.Body,
 		payload.Delay,
@@ -49,10 +46,6 @@ func (this Postgres) Publish(ctx context.Context, queueName string, payload type
 		payload.NoExpBackoff,
 		payload.Attempts,
 	); err != nil {
-		return err
-	}
-
-	if err := tx.Commit(); err != nil {
 		return err
 	}
 
@@ -64,26 +57,15 @@ func (this Postgres) Subscribe(ctx context.Context, queueName string, handler ty
 		return nil
 	}
 
-	var tx *sql.Tx
-
 	if ctx.Value("tx") == nil {
-		var err error
-		tx, err = this.db.BeginTx(ctx, nil)
-		if err != nil {
-			return err
-		}
-	} else {
-		db := ctx.Value("tx").(Querier)
-		var err error
-		tx, err = db.BeginTx(ctx, nil)
-		if err != nil {
-			return err
-		}
+		ctx = context.WithValue(ctx, "tx", this.db)
 	}
+
+	db := ctx.Value("tx").(Querier)
 
 	tableName := nameToTable(queueName)
 
-	row := tx.QueryRowContext(ctx, `DELETE FROM `+tableName+`
+	row := db.QueryRowContext(ctx, `DELETE FROM `+tableName+`
 WHERE id = (
   SELECT id FROM `+tableName+`
 	WHERE run_at < NOW()
@@ -117,15 +99,10 @@ RETURNING id, body, delay, run_at, no_exp_backoff, attempts`)
 					return err
 				}
 			}
-			subCtx := context.WithValue(ctx, "tx", this.db)
-			if err := this.Publish(subCtx, queueName, task); err != nil {
+			if err := this.Publish(ctx, queueName, task); err != nil {
 				return err
 			}
 		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		return err
 	}
 
 	return this.Subscribe(ctx, queueName, handler)
