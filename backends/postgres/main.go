@@ -27,6 +27,8 @@ type Postgres struct {
 }
 
 func (this Postgres) Publish(ctx context.Context, queueName string, payload types.Task) error {
+	log.Println("DEBUG kewpie", queueName, "Publishing task", payload)
+
 	if ctx.Value("tx") == nil {
 		ctx = context.WithValue(ctx, "tx", this.db)
 	}
@@ -85,11 +87,16 @@ RETURNING id, body, delay, run_at, no_exp_backoff, attempts`)
 		return err
 	}
 
+	log.Println("INFO kewpie Received task from queue", queueName)
+	log.Println("DEBUG kewpie Received task from queue", queueName, task)
+
 	requeue, err := handler.Handle(task)
 
 	log.Println("INFO kewpie", queueName, "Task completed on queue", queueName, err, requeue)
+	log.Println("DEBUG kewpie", queueName, "Task completed on queue", queueName, task, err, requeue)
 
 	if err != nil {
+		log.Println("ERROR kewpie", queueName, "Task failed on queue", queueName, task, err, requeue)
 		if requeue {
 			task.Attempts += 1
 			if !task.NoExpBackoff {
