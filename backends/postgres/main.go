@@ -126,7 +126,7 @@ func (this *Postgres) Init(queues []string) error {
 		if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS ` + tableName + ` (
 id UUID PRIMARY KEY,
 body TEXT NOT NULL DEFAULT '',
-delay INTEGER NOT NULL DEFAULT 0,
+delay BIGINT NOT NULL DEFAULT 0,
 run_at TIMESTAMPTZ default NOW(),
 created_at TIMESTAMPTZ default NOW(),
 no_exp_backoff BOOL NOT NULL DEFAULT false,
