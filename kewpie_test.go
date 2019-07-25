@@ -11,7 +11,7 @@ import (
 
 	"github.com/davidbanham/kewpie_go/types"
 	"github.com/davidbanham/required_env"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -112,8 +112,8 @@ func TestSubscribe(t *testing.T) {
 
 		ctx := context.Background()
 		go kewpie.Subscribe(ctx, queueName, handler)
-		assert.Nil(t, kewpie.Publish(ctx, queueName, pubTask1))
-		assert.Nil(t, kewpie.Publish(ctx, queueName, pubTask2))
+		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask1))
+		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask2))
 		time.Sleep(5 * time.Second)
 		if fired < 2 {
 			t.Fatal("Didn't fire enough", backend)
@@ -196,9 +196,9 @@ func TestRequeueing(t *testing.T) {
 
 		ctx := context.Background()
 		go kewpie.Subscribe(ctx, queueName, handler)
-		assert.Nil(t, kewpie.Publish(ctx, queueName, pubTask))
-		assert.Nil(t, kewpie.Publish(ctx, queueName, pubTask2))
-		assert.Nil(t, kewpie.Publish(ctx, queueName, pubTask3))
+		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask))
+		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask2))
+		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask3))
 		time.Sleep(5 * time.Second)
 		if matched < 2 {
 			t.Error("Didn't fire enough", matched, backend)

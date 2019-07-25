@@ -26,7 +26,7 @@ type Postgres struct {
 	closed bool
 }
 
-func (this Postgres) Publish(ctx context.Context, queueName string, payload types.Task) error {
+func (this Postgres) Publish(ctx context.Context, queueName string, payload *types.Task) error {
 	log.Println("DEBUG kewpie", queueName, "Publishing task", payload)
 
 	if ctx.Value("tx") == nil {
@@ -50,6 +50,8 @@ func (this Postgres) Publish(ctx context.Context, queueName string, payload type
 	); err != nil {
 		return err
 	}
+
+	payload.ID = id
 
 	return nil
 }
@@ -106,7 +108,7 @@ RETURNING id, body, delay, run_at, no_exp_backoff, attempts`)
 					return err
 				}
 			}
-			if err := this.Publish(ctx, queueName, task); err != nil {
+			if err := this.Publish(ctx, queueName, &task); err != nil {
 				return err
 			}
 		}

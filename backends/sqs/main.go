@@ -29,11 +29,10 @@ func roundTo15(orig time.Duration) time.Duration {
 	return orig
 }
 
-func (this Sqs) Publish(ctx context.Context, queueName string, payload types.Task) (err error) {
+func (this Sqs) Publish(ctx context.Context, queueName string, payload *types.Task) error {
 	url := this.urls[queueName]
 	if url == "" {
-		err = types.QueueNotFound
-		return
+		return types.QueueNotFound
 	}
 
 	log.Println("DEBUG kewpie", queueName, "Publishing task", payload)
@@ -66,8 +65,9 @@ func (this Sqs) Publish(ctx context.Context, queueName string, payload types.Tas
 		MessageBody: &payload.Body,
 		QueueUrl:    &url,
 	}
-	_, err = this.svc.SendMessage(&message)
-	return
+	messageOutput, err := this.svc.SendMessage(&message)
+	payload.ID = *messageOutput.MessageId
+	return err
 }
 
 func (this Sqs) Subscribe(ctx context.Context, queueName string, handler types.Handler) (err error) {
@@ -143,7 +143,7 @@ func (this Sqs) Subscribe(ctx context.Context, queueName string, handler types.H
 		if now.Before(runAt.Add(-time.Second)) {
 			task.Delay = runAt.Sub(time.Now())
 			log.Println("DEBUG kewpie", queueName, "Republishing task", task)
-			if err := this.Publish(ctx, queueName, task); err != nil {
+			if err := this.Publish(ctx, queueName, &task); err != nil {
 				log.Println("ERROR kewpie", queueName, "Error republishing task", task)
 			}
 			this.deleteMessage(queueName, message)
@@ -167,7 +167,7 @@ func (this Sqs) Subscribe(ctx context.Context, queueName string, handler types.H
 						continue
 					}
 				}
-				this.Publish(ctx, queueName, task)
+				this.Publish(ctx, queueName, &task)
 				delete = true
 			}
 		}

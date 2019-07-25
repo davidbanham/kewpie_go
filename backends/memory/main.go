@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/davidbanham/kewpie_go/types"
+	uuid "github.com/satori/go.uuid"
 )
 
 // MemoryStore is intended for use in test suites.
@@ -16,12 +17,13 @@ type MemoryStore struct {
 	closed bool
 }
 
-func (this *MemoryStore) Publish(ctx context.Context, queueName string, payload types.Task) (err error) {
+func (this *MemoryStore) Publish(ctx context.Context, queueName string, payload *types.Task) (err error) {
 	if this.tasks[queueName] == nil {
 		return types.QueueNotFound
 	}
 
-	this.tasks[queueName] = append(this.tasks[queueName], payload)
+	payload.ID = uuid.NewV4().String()
+	this.tasks[queueName] = append(this.tasks[queueName], *payload)
 	return
 }
 

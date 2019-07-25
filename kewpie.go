@@ -19,13 +19,13 @@ type Kewpie struct {
 type Task = types.Task
 
 type Backend interface {
-	Publish(ctx context.Context, queueName string, payload types.Task) error
+	Publish(ctx context.Context, queueName string, payload *types.Task) error
 	Subscribe(ctx context.Context, queueName string, handler types.Handler) error
 	Init(queues []string) error
 	Disconnect() error
 }
 
-func (this Kewpie) Publish(ctx context.Context, queueName string, payload types.Task) (err error) {
+func (this Kewpie) Publish(ctx context.Context, queueName string, payload *types.Task) (err error) {
 	// If Delay is blank, but RunAt is set, populate Delay with info from RunAt
 	blankTime := time.Time{}
 	if payload.Delay == 0 && payload.RunAt != blankTime {

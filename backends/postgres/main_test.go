@@ -47,8 +47,8 @@ func TestOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal("Err in marshaling")
 	}
-	assert.Nil(t, pg.Publish(ctx, queueName, pubTask1))
-	assert.Nil(t, pg.Publish(ctx, queueName, pubTask2))
+	assert.Nil(t, pg.Publish(ctx, queueName, &pubTask1))
+	assert.Nil(t, pg.Publish(ctx, queueName, &pubTask2))
 
 	hit := false
 	handler := &testHandler{

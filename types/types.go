@@ -7,6 +7,7 @@ import (
 )
 
 type Task struct {
+	ID           string
 	Body         string
 	Delay        time.Duration // Delay overrides RunAt
 	RunAt        time.Time
