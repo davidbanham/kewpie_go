@@ -33,6 +33,8 @@ func (this Kewpie) Publish(ctx context.Context, queueName string, payload *types
 		payload.RunAt = time.Now()
 	}
 
+	payload.Delay = payload.RunAt.Sub(time.Now())
+
 	err = this.backend.Publish(ctx, queueName, payload)
 
 	return

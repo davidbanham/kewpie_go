@@ -44,14 +44,12 @@ func (this Sqs) Publish(ctx context.Context, queueName string, payload *types.Ta
 
 	delay := int64(roundTo15(payload.Delay).Seconds())
 
-	runAt := time.Now().Add(payload.Delay)
-
 	message := sqs.SendMessageInput{
 		DelaySeconds: &delay,
 		MessageAttributes: map[string]*sqs.MessageAttributeValue{
 			"RunAt": &sqs.MessageAttributeValue{
 				DataType:    aws.String("String"),
-				StringValue: aws.String(runAt.UTC().Format(time.RFC3339)),
+				StringValue: aws.String(payload.RunAt.UTC().Format(time.RFC3339)),
 			},
 			"NoExpBackoff": &sqs.MessageAttributeValue{
 				DataType:    aws.String("String"),

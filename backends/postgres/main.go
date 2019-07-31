@@ -35,8 +35,6 @@ func (this Postgres) Publish(ctx context.Context, queueName string, payload *typ
 
 	db := ctx.Value("tx").(Querier)
 
-	payload.RunAt = time.Now().Add(payload.Delay)
-
 	id := uuid.NewV4().String()
 	tableName := nameToTable(queueName)
 
