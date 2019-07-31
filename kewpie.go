@@ -26,14 +26,12 @@ type Backend interface {
 }
 
 func (this Kewpie) Publish(ctx context.Context, queueName string, payload *types.Task) (err error) {
-	// If Delay is blank, but RunAt is set, populate Delay with info from RunAt
-	blankTime := time.Time{}
-	if payload.Delay == 0 && payload.RunAt != blankTime {
-		payload.Delay = time.Now().Sub(payload.RunAt)
-	}
-
 	// Set RunAt based on the info from Delay
-	payload.RunAt = time.Now().Add(payload.Delay)
+	if payload.Delay != 0 {
+		payload.RunAt = time.Now().Add(payload.Delay)
+	} else if payload.RunAt.IsZero() {
+		payload.RunAt = time.Now()
+	}
 
 	err = this.backend.Publish(ctx, queueName, payload)
 
