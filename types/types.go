@@ -7,12 +7,12 @@ import (
 )
 
 type Task struct {
-	ID           string
-	Body         string
-	Delay        time.Duration // Delay overrides RunAt
-	RunAt        time.Time
-	NoExpBackoff bool
-	Attempts     int
+	ID           string        `json:"id"`
+	Body         string        `json:"body"`
+	Delay        time.Duration `json:"delay"` // Delay overrides RunAt
+	RunAt        time.Time     `json:"run_at"`
+	NoExpBackoff bool          `json:"no_exp_backoff"`
+	Attempts     int           `json:"attempts"`
 }
 
 func (t Task) Unmarshal(res interface{}) (err error) {
