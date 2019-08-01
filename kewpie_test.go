@@ -262,7 +262,7 @@ func TestRequeueing(t *testing.T) {
 
 		ctx := context.Background()
 		go (func() {
-			assert.Nil(t, kewpie.Subscribe(ctx, queueName, handler))
+			kewpie.Subscribe(ctx, queueName, handler)
 		})()
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask))
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask2))
