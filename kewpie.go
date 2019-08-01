@@ -24,6 +24,7 @@ type Backend interface {
 	Init(queues []string) error
 	Disconnect() error
 	Purge(ctx context.Context, queueName string) error
+	PurgeMatching(ctx context.Context, queueName, substr string) error
 }
 
 func (this Kewpie) Publish(ctx context.Context, queueName string, payload *types.Task) (err error) {
@@ -74,4 +75,8 @@ func (this Kewpie) Disconnect() error {
 
 func (this Kewpie) Purge(ctx context.Context, queueName string) error {
 	return this.backend.Purge(ctx, queueName)
+}
+
+func (this Kewpie) PurgeMatching(ctx context.Context, queueName, substr string) error {
+	return this.backend.PurgeMatching(ctx, queueName, substr)
 }

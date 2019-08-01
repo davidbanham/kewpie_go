@@ -277,3 +277,59 @@ func TestRequeueing(t *testing.T) {
 		assert.Nil(t, kewpie.Disconnect())
 	}
 }
+
+func TestPurgeMatching(t *testing.T) {
+	for _, backend := range backends {
+		kewpie := Kewpie{}
+
+		if err := kewpie.Connect(backend, []string{queueName}); err != nil {
+			log.Fatal("Error connecting to queue")
+		}
+
+		uniq1 := uuid.NewV4().String()
+		uniq2 := uuid.NewV4().String()
+		match1 := false
+		match2 := false
+
+		pubTask1 := types.Task{}
+		assert.Nil(t, pubTask1.Marshal(supDawg{
+			Sup: uniq1,
+		}))
+		pubTask2 := types.Task{}
+		assert.Nil(t, pubTask2.Marshal(supDawg{
+			Sup: uniq2,
+		}))
+
+		handler := &testHandler{
+			handleFunc: func(task types.Task) (requeue bool, err error) {
+				monty := supDawg{}
+				task.Unmarshal(&monty)
+
+				if monty.Sup == uniq1 {
+					match1 = true
+				}
+				if monty.Sup == uniq2 {
+					match2 = true
+				}
+				return false, nil
+			},
+		}
+
+		ctx := context.Background()
+		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask1))
+		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask2))
+
+		if purgeErr := kewpie.PurgeMatching(ctx, queueName, uniq1); purgeErr == nil {
+			go kewpie.Subscribe(ctx, queueName, handler)
+
+			time.Sleep(5 * time.Second)
+
+			assert.False(t, match1)
+			assert.True(t, match2)
+		} else {
+			assert.Equal(t, purgeErr, types.NotImplemented)
+		}
+
+		assert.Nil(t, kewpie.Disconnect())
+	}
+}

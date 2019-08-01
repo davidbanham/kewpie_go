@@ -168,6 +168,10 @@ func (this *Postgres) Disconnect() error {
 }
 
 func (this Postgres) Purge(ctx context.Context, queueName string) error {
+	return this.PurgeMatching(ctx, queueName, "*")
+}
+
+func (this Postgres) PurgeMatching(ctx context.Context, queueName, substr string) error {
 	if this.closed {
 		return types.ConnectionClosed
 	}
@@ -180,7 +184,13 @@ func (this Postgres) Purge(ctx context.Context, queueName string) error {
 
 	tableName := nameToTable(queueName)
 
-	res, err := db.ExecContext(ctx, `DELETE FROM `+tableName)
+	var res sql.Result
+	var err error
+	if substr == "*" {
+		res, err = db.ExecContext(ctx, `DELETE FROM `+tableName)
+	} else {
+		res, err = db.ExecContext(ctx, `DELETE FROM `+tableName+` WHERE body LIKE '%' || $1 || '%'`, substr)
+	}
 	if err != nil {
 		return err
 	}

@@ -301,3 +301,7 @@ func (this Sqs) Purge(ctx context.Context, queueName string) error {
 
 	return nil
 }
+
+func (this Sqs) PurgeMatching(ctx context.Context, queueName, substr string) error {
+	return types.NotImplemented
+}

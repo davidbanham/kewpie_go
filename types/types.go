@@ -32,4 +32,5 @@ type Handler interface {
 
 var QueueNotFound = errors.New("I don't know any queue by that name")
 var ConnectionClosed = errors.New("The connection to the backend is closed")
+var NotImplemented = errors.New("This method is not implemented on this backend")
 var UnknownBackend = errors.New("I have never heard of that backend")

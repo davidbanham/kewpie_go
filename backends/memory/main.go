@@ -3,6 +3,7 @@ package memory
 import (
 	"context"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -103,5 +104,14 @@ func (this *MemoryStore) Purge(ctx context.Context, queueName string) error {
 
 	this.tasks[queueName] = []types.Task{}
 
+	return nil
+}
+
+func (this *MemoryStore) PurgeMatching(ctx context.Context, queueName, substr string) error {
+	for i, task := range this.tasks[queueName] {
+		if strings.Contains(task.Body, substr) {
+			this.tasks[queueName] = append(this.tasks[queueName][:i], this.tasks[queueName][i+1:]...)
+		}
+	}
 	return nil
 }
