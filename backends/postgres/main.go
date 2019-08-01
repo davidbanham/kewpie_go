@@ -80,8 +80,7 @@ WHERE id = (
 RETURNING id, body, delay, run_at, no_exp_backoff, attempts`)
 
 		task := types.Task{}
-		var id string
-		if err := row.Scan(&id, &task.Body, &task.Delay, &task.RunAt, &task.NoExpBackoff, &task.Attempts); err != nil {
+		if err := row.Scan(&task.ID, &task.Body, &task.Delay, &task.RunAt, &task.NoExpBackoff, &task.Attempts); err != nil {
 			if err == sql.ErrNoRows {
 				time.Sleep(1 * time.Second)
 				continue
