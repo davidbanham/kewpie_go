@@ -2,7 +2,6 @@ package sqs
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"path"
 	"strconv"
@@ -77,7 +76,7 @@ func (this Sqs) Publish(ctx context.Context, queueName string, payload *types.Ta
 
 func (this Sqs) Pop(ctx context.Context, queueName string, handler types.Handler) error {
 	if this.closed {
-		return fmt.Errorf("Connection closed")
+		return types.ConnectionClosed
 	}
 
 	url := this.urls[queueName]
@@ -197,7 +196,7 @@ func (this Sqs) Pop(ctx context.Context, queueName string, handler types.Handler
 func (this Sqs) Subscribe(ctx context.Context, queueName string, handler types.Handler) (err error) {
 	for {
 		if this.closed {
-			return nil
+			return types.ConnectionClosed
 		}
 		if err := this.Pop(ctx, queueName, handler); err != nil {
 			return err
@@ -281,7 +280,7 @@ func (this *Sqs) Disconnect() error {
 
 func (this Sqs) Purge(ctx context.Context, queueName string) error {
 	if this.closed {
-		return fmt.Errorf("Connection closed")
+		return types.ConnectionClosed
 	}
 
 	url := this.urls[queueName]

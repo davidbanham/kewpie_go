@@ -3,7 +3,6 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -57,7 +56,7 @@ func (this Postgres) Publish(ctx context.Context, queueName string, payload *typ
 
 func (this Postgres) Pop(ctx context.Context, queueName string, handler types.Handler) error {
 	if this.closed {
-		return fmt.Errorf("Connection closed")
+		return types.ConnectionClosed
 	}
 
 	if ctx.Value("tx") == nil {
@@ -123,7 +122,7 @@ RETURNING id, body, delay, run_at, no_exp_backoff, attempts`)
 func (this Postgres) Subscribe(ctx context.Context, queueName string, handler types.Handler) error {
 	for {
 		if this.closed {
-			return nil
+			return types.ConnectionClosed
 		}
 
 		if err := this.Pop(ctx, queueName, handler); err != nil {
@@ -170,7 +169,7 @@ func (this *Postgres) Disconnect() error {
 
 func (this Postgres) Purge(ctx context.Context, queueName string) error {
 	if this.closed {
-		return fmt.Errorf("Connection closed")
+		return types.ConnectionClosed
 	}
 
 	if ctx.Value("tx") == nil {
