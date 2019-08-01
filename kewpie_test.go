@@ -2,7 +2,6 @@ package kewpie
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"os"
@@ -31,15 +30,17 @@ func init() {
 
 	queueName = os.Getenv("TEST_QUEUE_NAME")
 
-	dbURI := os.Getenv("DB_URI")
-	db, err := sql.Open("postgres", dbURI)
-	if err != nil {
-		log.Fatal(err)
-	}
+	for _, backend := range backends {
+		kewpie := Kewpie{}
 
-	log.Println("truncating postgres table")
-	db.Exec("TRUNCATE kewpie_" + queueName)
-	log.Println("done truncating postgres table")
+		if err := kewpie.Connect(backend, []string{queueName}); err != nil {
+			log.Fatal(err)
+		}
+
+		if err := kewpie.Purge(context.Background(), queueName); err != nil {
+			log.Fatal(err)
+		}
+	}
 }
 
 func TestUnmarshal(t *testing.T) {
@@ -71,7 +72,7 @@ func TestSubscribe(t *testing.T) {
 		kewpie := Kewpie{}
 
 		if err := kewpie.Connect(backend, []string{queueName}); err != nil {
-			panic("Error connecting to queue")
+			log.Fatal("Error connecting to queue")
 		}
 
 		fired := 0
@@ -133,7 +134,7 @@ func TestPop(t *testing.T) {
 		kewpie := Kewpie{}
 
 		if err := kewpie.Connect(backend, []string{queueName}); err != nil {
-			panic("Error connecting to queue")
+			log.Fatal("Error connecting to queue")
 		}
 
 		fired := 0
@@ -199,7 +200,7 @@ func TestRequeueing(t *testing.T) {
 		kewpie := Kewpie{}
 
 		if err := kewpie.Connect(backend, []string{queueName}); err != nil {
-			panic("Error connecting to queue")
+			log.Fatal("Error connecting to queue")
 		}
 
 		uniq := "cycler" + uuid.NewV4().String()

@@ -2,6 +2,7 @@ package sqs
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"path"
 	"strconv"
@@ -76,7 +77,7 @@ func (this Sqs) Publish(ctx context.Context, queueName string, payload *types.Ta
 
 func (this Sqs) Pop(ctx context.Context, queueName string, handler types.Handler) error {
 	if this.closed {
-		return nil
+		return fmt.Errorf("Connection closed")
 	}
 
 	url := this.urls[queueName]
@@ -275,5 +276,29 @@ func (this Sqs) deleteMessage(queueName string, message *sqs.Message) error {
 
 func (this *Sqs) Disconnect() error {
 	this.closed = true
+	return nil
+}
+
+func (this Sqs) Purge(ctx context.Context, queueName string) error {
+	if this.closed {
+		return fmt.Errorf("Connection closed")
+	}
+
+	url := this.urls[queueName]
+	if url == "" {
+		return types.QueueNotFound
+	}
+
+	purgeInput := sqs.PurgeQueueInput{
+		QueueUrl: &url,
+	}
+
+	_, err := this.svc.PurgeQueue(&purgeInput)
+	if err != nil {
+		return err
+	}
+
+	log.Println("INFO kewpie Purged tasks from %s", queueName)
+
 	return nil
 }

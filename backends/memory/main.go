@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -30,7 +31,7 @@ func (this *MemoryStore) Publish(ctx context.Context, queueName string, payload 
 
 func (this *MemoryStore) Pop(ctx context.Context, queueName string, handler types.Handler) error {
 	if this.closed {
-		return nil
+		return fmt.Errorf("Connection closed")
 	}
 
 	if this.tasks[queueName] == nil {
@@ -93,5 +94,15 @@ func (this *MemoryStore) Init(queues []string) error {
 
 func (this *MemoryStore) Disconnect() error {
 	this.closed = true
+	return nil
+}
+
+func (this *MemoryStore) Purge(ctx context.Context, queueName string) error {
+	if this.closed {
+		return fmt.Errorf("Connection closed")
+	}
+
+	this.tasks[queueName] = []types.Task{}
+
 	return nil
 }

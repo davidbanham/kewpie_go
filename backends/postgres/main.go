@@ -168,6 +168,33 @@ func (this *Postgres) Disconnect() error {
 	return this.db.Close()
 }
 
+func (this Postgres) Purge(ctx context.Context, queueName string) error {
+	if this.closed {
+		return fmt.Errorf("Connection closed")
+	}
+
+	if ctx.Value("tx") == nil {
+		ctx = context.WithValue(ctx, "tx", this.db)
+	}
+
+	db := ctx.Value("tx").(Querier)
+
+	tableName := nameToTable(queueName)
+
+	res, err := db.ExecContext(ctx, `DELETE FROM `+tableName)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	log.Printf("INFO kewpie Purged %d tasks from %s\n", rows, queueName)
+
+	return nil
+}
+
 func nameToTable(name string) string {
 	name = strings.Replace(name, " ", "_", -1) // no spaces
 	name = strings.Replace(name, "-", "_", -1) // no dashes
