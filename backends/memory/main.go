@@ -3,6 +3,7 @@ package memory
 import (
 	"context"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/davidbanham/kewpie_go/types"
@@ -27,7 +28,7 @@ func (this *MemoryStore) Publish(ctx context.Context, queueName string, payload 
 	return
 }
 
-func (this *MemoryStore) Subscribe(ctx context.Context, queueName string, handler types.Handler) error {
+func (this *MemoryStore) Pop(ctx context.Context, queueName string, handler types.Handler) error {
 	if this.closed {
 		return nil
 	}
@@ -36,6 +37,8 @@ func (this *MemoryStore) Subscribe(ctx context.Context, queueName string, handle
 		return types.QueueNotFound
 	}
 
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
 		for {
 			if len(this.tasks[queueName]) == 0 {
@@ -60,9 +63,24 @@ func (this *MemoryStore) Subscribe(ctx context.Context, queueName string, handle
 					this.tasks[queueName] = append(this.tasks[queueName], task)
 				}
 			}
+			wg.Done()
+			return
 		}
 	}()
+	wg.Wait()
 	return nil
+}
+
+func (this *MemoryStore) Subscribe(ctx context.Context, queueName string, handler types.Handler) error {
+	for {
+		if this.closed {
+			return nil
+		}
+
+		if err := this.Pop(ctx, queueName, handler); err != nil {
+			return err
+		}
+	}
 }
 
 func (this *MemoryStore) Init(queues []string) error {

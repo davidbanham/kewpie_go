@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -54,9 +55,9 @@ func (this Postgres) Publish(ctx context.Context, queueName string, payload *typ
 	return nil
 }
 
-func (this Postgres) Subscribe(ctx context.Context, queueName string, handler types.Handler) error {
+func (this Postgres) Pop(ctx context.Context, queueName string, handler types.Handler) error {
 	if this.closed {
-		return nil
+		return fmt.Errorf("Connection closed")
 	}
 
 	if ctx.Value("tx") == nil {
@@ -67,7 +68,8 @@ func (this Postgres) Subscribe(ctx context.Context, queueName string, handler ty
 
 	tableName := nameToTable(queueName)
 
-	row := db.QueryRowContext(ctx, `DELETE FROM `+tableName+`
+	for {
+		row := db.QueryRowContext(ctx, `DELETE FROM `+tableName+`
 WHERE id = (
   SELECT id FROM `+tableName+`
 	WHERE run_at < NOW()
@@ -77,42 +79,58 @@ WHERE id = (
 )
 RETURNING id, body, delay, run_at, no_exp_backoff, attempts`)
 
-	task := types.Task{}
-	var id string
-	if err := row.Scan(&id, &task.Body, &task.Delay, &task.RunAt, &task.NoExpBackoff, &task.Attempts); err != nil {
-		if err == sql.ErrNoRows {
-			time.Sleep(1 * time.Second)
-			return this.Subscribe(ctx, queueName, handler)
+		task := types.Task{}
+		var id string
+		if err := row.Scan(&id, &task.Body, &task.Delay, &task.RunAt, &task.NoExpBackoff, &task.Attempts); err != nil {
+			if err == sql.ErrNoRows {
+				time.Sleep(1 * time.Second)
+				continue
+				//return this.Pop(ctx, queueName, handler)
+			}
+			return err
 		}
-		return err
-	}
 
-	log.Println("INFO kewpie Received task from queue", queueName)
-	log.Println("DEBUG kewpie Received task from queue", queueName, task)
+		log.Println("INFO kewpie Received task from queue", queueName)
+		log.Println("DEBUG kewpie Received task from queue", queueName, task)
 
-	requeue, err := handler.Handle(task)
+		requeue, err := handler.Handle(task)
 
-	log.Println("INFO kewpie", queueName, "Task completed on queue", queueName, err, requeue)
-	log.Println("DEBUG kewpie", queueName, "Task completed on queue", queueName, task, err, requeue)
+		log.Println("INFO kewpie", queueName, "Task completed on queue", queueName, err, requeue)
+		log.Println("DEBUG kewpie", queueName, "Task completed on queue", queueName, task, err, requeue)
 
-	if err != nil {
-		log.Println("ERROR kewpie", queueName, "Task failed on queue", queueName, task, err, requeue)
-		if requeue {
-			task.Attempts += 1
-			if !task.NoExpBackoff {
-				task.Delay, err = util.CalcBackoff(task.Attempts + 1)
-				if err != nil {
-					log.Println("ERROR kewpie", queueName, "Failed to calc backoff", queueName, task, err)
+		if err != nil {
+			log.Println("ERROR kewpie", queueName, "Task failed on queue", queueName, task, err, requeue)
+			if requeue {
+				task.Attempts += 1
+				if !task.NoExpBackoff {
+					task.Delay, err = util.CalcBackoff(task.Attempts + 1)
+					if err != nil {
+						log.Println("ERROR kewpie", queueName, "Failed to calc backoff", queueName, task, err)
+						return err
+					}
+				}
+				if err := this.Publish(ctx, queueName, &task); err != nil {
 					return err
 				}
 			}
-			if err := this.Publish(ctx, queueName, &task); err != nil {
-				return err
-			}
 		}
+
+		return nil
 	}
 
-	return this.Subscribe(ctx, queueName, handler)
+	return nil
+}
+
+func (this Postgres) Subscribe(ctx context.Context, queueName string, handler types.Handler) error {
+	for {
+		if this.closed {
+			return nil
+		}
+
+		if err := this.Pop(ctx, queueName, handler); err != nil {
+			return err
+		}
+	}
 }
 
 func (this *Postgres) Init(queues []string) error {

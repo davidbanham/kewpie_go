@@ -21,6 +21,7 @@ type Task = types.Task
 type Backend interface {
 	Publish(ctx context.Context, queueName string, payload *types.Task) error
 	Subscribe(ctx context.Context, queueName string, handler types.Handler) error
+	Pop(ctx context.Context, queueName string, handler types.Handler) error
 	Init(queues []string) error
 	Disconnect() error
 }
@@ -43,6 +44,10 @@ func (this Kewpie) Publish(ctx context.Context, queueName string, payload *types
 func (this Kewpie) Subscribe(ctx context.Context, queueName string, handler types.Handler) (err error) {
 	err = this.backend.Subscribe(ctx, queueName, handler)
 	return
+}
+
+func (this Kewpie) Pop(ctx context.Context, queueName string, handler types.Handler) error {
+	return this.backend.Pop(ctx, queueName, handler)
 }
 
 func (this *Kewpie) Connect(backend string, queues []string) (err error) {

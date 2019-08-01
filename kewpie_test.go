@@ -128,6 +128,71 @@ func TestSubscribe(t *testing.T) {
 	}
 }
 
+func TestPop(t *testing.T) {
+	for _, backend := range backends {
+		kewpie := Kewpie{}
+
+		if err := kewpie.Connect(backend, []string{queueName}); err != nil {
+			panic("Error connecting to queue")
+		}
+
+		fired := 0
+		uniq1 := uuid.NewV4().String()
+		uniq2 := uuid.NewV4().String()
+		match1 := false
+		match2 := false
+
+		handler := &testHandler{
+			handleFunc: func(task types.Task) (requeue bool, err error) {
+				fired = fired + 1
+				monty := supDawg{}
+				task.Unmarshal(&monty)
+
+				if monty.Sup == uniq1 {
+					match1 = true
+				}
+				if monty.Sup == uniq2 {
+					match2 = true
+				}
+				return false, nil
+			},
+		}
+		pubTask1 := types.Task{}
+		err := pubTask1.Marshal(supDawg{
+			Sup: uniq1,
+		})
+		if err != nil {
+			t.Fatal("Err in marshaling")
+		}
+		pubTask2 := types.Task{}
+		err = pubTask2.Marshal(supDawg{
+			Sup: uniq2,
+		})
+		if err != nil {
+			t.Fatal("Err in marshaling")
+		}
+
+		ctx := context.Background()
+		go kewpie.Pop(ctx, queueName, handler)
+		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask1))
+		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask2))
+		time.Sleep(5 * time.Second)
+		if fired < 1 {
+			t.Fatal("Didn't fire enough", backend)
+		}
+		if fired > 1 {
+			t.Fatal("Fired too much", backend)
+		}
+		if !match1 {
+			if !match2 {
+				t.Fatal("Didn't match either uniq code", backend)
+			}
+		}
+
+		assert.Nil(t, kewpie.Disconnect())
+	}
+}
+
 func TestRequeueing(t *testing.T) {
 	for _, backend := range backends {
 
@@ -195,7 +260,9 @@ func TestRequeueing(t *testing.T) {
 		pubTask3.NoExpBackoff = true
 
 		ctx := context.Background()
-		go kewpie.Subscribe(ctx, queueName, handler)
+		go (func() {
+			assert.Nil(t, kewpie.Subscribe(ctx, queueName, handler))
+		})()
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask))
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask2))
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask3))
