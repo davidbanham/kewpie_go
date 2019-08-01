@@ -2,7 +2,6 @@ package kewpie
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/davidbanham/kewpie_go/backends/memory"
@@ -62,7 +61,7 @@ func (this *Kewpie) Connect(backend string, queues []string) (err error) {
 	case "postgres":
 		this.backend = &postgres.Postgres{}
 	default:
-		return fmt.Errorf("Unknown backend")
+		return types.UnknownBackend
 	}
 
 	err = this.backend.Init(queues)
