@@ -16,6 +16,7 @@ type Kewpie struct {
 }
 
 type Task = types.Task
+type Tags = types.Tags
 
 type Backend interface {
 	Publish(ctx context.Context, queueName string, payload *types.Task) error
