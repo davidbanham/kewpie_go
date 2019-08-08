@@ -298,7 +298,7 @@ func (this Sqs) Purge(ctx context.Context, queueName string) error {
 		return err
 	}
 
-	log.Println("INFO kewpie Purged tasks from %s", queueName)
+	log.Printf("INFO kewpie Purged tasks from %s\n", queueName)
 
 	return nil
 }
