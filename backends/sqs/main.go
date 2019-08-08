@@ -121,7 +121,7 @@ func (this Sqs) Pop(ctx context.Context, queueName string, handler types.Handler
 				continue
 			}
 
-			if noExpBackoffPtr != nil && noExpBackoffPtr.String() == "true" {
+			if noExpBackoffPtr != nil && string(*noExpBackoffPtr.StringValue) == "true" {
 				noExpBackoff = true
 			}
 
