@@ -391,3 +391,38 @@ func TestTags(t *testing.T) {
 		assert.Nil(t, kewpie.Disconnect())
 	}
 }
+
+func TestCancel(t *testing.T) {
+	for _, backend := range backends {
+		hangTime := 1100 * time.Millisecond
+		if backend == "sqs" {
+			hangTime = 21 * time.Second
+		}
+		kewpie := Kewpie{}
+
+		if err := kewpie.Connect(backend, []string{queueName}); err != nil {
+			log.Fatal("Error connecting to queue")
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+
+		handler := &testHandler{
+			handleFunc: func(task types.Task) (requeue bool, err error) {
+				return false, nil
+			},
+		}
+
+		hit := false
+		go (func() {
+			err := kewpie.Subscribe(ctx, queueName, handler)
+			assert.Equal(t, types.SubscriptionCancelled, err)
+			hit = true
+		})()
+
+		cancel()
+		time.Sleep(hangTime)
+		assert.True(t, hit)
+
+		assert.Nil(t, kewpie.Disconnect())
+	}
+}

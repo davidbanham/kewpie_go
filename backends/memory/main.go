@@ -30,6 +30,18 @@ func (this *MemoryStore) Publish(ctx context.Context, queueName string, payload 
 }
 
 func (this *MemoryStore) Pop(ctx context.Context, queueName string, handler types.Handler) error {
+	cancelled := false
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				cancelled = true
+				return
+			}
+		}
+	}()
+
 	if this.closed {
 		return types.ConnectionClosed
 	}
@@ -40,8 +52,15 @@ func (this *MemoryStore) Pop(ctx context.Context, queueName string, handler type
 
 	var wg sync.WaitGroup
 	wg.Add(1)
+	var innerErr error
 	go func() {
 		for {
+			if cancelled {
+				innerErr = types.SubscriptionCancelled
+				wg.Done()
+				return
+			}
+
 			if len(this.tasks[queueName]) == 0 {
 				time.Sleep(1 * time.Second)
 				continue
@@ -69,7 +88,7 @@ func (this *MemoryStore) Pop(ctx context.Context, queueName string, handler type
 		}
 	}()
 	wg.Wait()
-	return nil
+	return innerErr
 }
 
 func (this *MemoryStore) Subscribe(ctx context.Context, queueName string, handler types.Handler) error {

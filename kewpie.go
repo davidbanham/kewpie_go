@@ -44,8 +44,7 @@ func (this Kewpie) Publish(ctx context.Context, queueName string, payload *types
 }
 
 func (this Kewpie) Subscribe(ctx context.Context, queueName string, handler types.Handler) (err error) {
-	err = this.backend.Subscribe(ctx, queueName, handler)
-	return
+	return this.backend.Subscribe(ctx, queueName, handler)
 }
 
 func (this Kewpie) Pop(ctx context.Context, queueName string, handler types.Handler) error {

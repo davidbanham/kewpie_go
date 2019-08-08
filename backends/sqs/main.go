@@ -85,6 +85,18 @@ func (this Sqs) Publish(ctx context.Context, queueName string, payload *types.Ta
 }
 
 func (this Sqs) Pop(ctx context.Context, queueName string, handler types.Handler) error {
+	cancelled := false
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				cancelled = true
+				return
+			}
+		}
+	}()
+
 	if this.closed {
 		return types.ConnectionClosed
 	}
@@ -109,6 +121,10 @@ func (this Sqs) Pop(ctx context.Context, queueName string, handler types.Handler
 		},
 	}
 	for {
+		if cancelled {
+			return types.SubscriptionCancelled
+		}
+
 		response, err := this.svc.ReceiveMessage(&params)
 		if err != nil {
 			log.Println("ERROR kewpie", queueName, "Error recieving message from queue", queueName, err)

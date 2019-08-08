@@ -56,6 +56,18 @@ func (this Postgres) Publish(ctx context.Context, queueName string, payload *typ
 }
 
 func (this Postgres) Pop(ctx context.Context, queueName string, handler types.Handler) error {
+	cancelled := false
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				cancelled = true
+				return
+			}
+		}
+	}()
+
 	if this.closed {
 		return types.ConnectionClosed
 	}
@@ -69,6 +81,10 @@ func (this Postgres) Pop(ctx context.Context, queueName string, handler types.Ha
 	tableName := nameToTable(queueName)
 
 	for {
+		if cancelled {
+			return types.SubscriptionCancelled
+		}
+
 		row := db.QueryRowContext(ctx, `DELETE FROM `+tableName+`
 WHERE id = (
   SELECT id FROM `+tableName+`
@@ -85,6 +101,9 @@ RETURNING id, body, delay, run_at, no_exp_backoff, attempts, tags`)
 				time.Sleep(1 * time.Second)
 				continue
 				//return this.Pop(ctx, queueName, handler)
+			}
+			if err == context.Canceled {
+				return types.SubscriptionCancelled
 			}
 			return err
 		}
