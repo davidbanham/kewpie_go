@@ -96,14 +96,18 @@ func TestSubscribe(t *testing.T) {
 				return false, nil
 			},
 		}
-		pubTask1 := types.Task{}
+		pubTask1 := types.Task{
+			NoExpBackoff: true,
+		}
 		err := pubTask1.Marshal(supDawg{
 			Sup: uniq1,
 		})
 		if err != nil {
 			t.Fatal("Err in marshaling")
 		}
-		pubTask2 := types.Task{}
+		pubTask2 := types.Task{
+			NoExpBackoff: true,
+		}
 		err = pubTask2.Marshal(supDawg{
 			Sup: uniq2,
 		})

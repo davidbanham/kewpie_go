@@ -94,6 +94,7 @@ func (this Sqs) Pop(ctx context.Context, queueName string, handler types.Handler
 		MessageAttributeNames: []*string{
 			aws.String("RunAt"),
 			aws.String("NoExpBackoff"),
+			aws.String("Attempts"),
 		},
 	}
 	for {
@@ -125,7 +126,7 @@ func (this Sqs) Pop(ctx context.Context, queueName string, handler types.Handler
 			}
 
 			if attemptsPtr != nil {
-				parsed, err := strconv.Atoi(attemptsPtr.String())
+				parsed, err := strconv.Atoi(string(*attemptsPtr.StringValue))
 				if err != nil {
 					log.Println("ERROR kewpie", queueName, "Attempts was not an int", message, err)
 					continue
