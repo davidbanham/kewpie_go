@@ -2,6 +2,7 @@ package sqs
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"path"
 	"strconv"
@@ -47,6 +48,11 @@ func (this Sqs) Publish(ctx context.Context, queueName string, payload *types.Ta
 
 	delay := int64(roundTo15(payload.Delay).Seconds())
 
+	tags, err := json.Marshal(payload.Tags)
+	if err != nil {
+		return err
+	}
+
 	message := sqs.SendMessageInput{
 		DelaySeconds: &delay,
 		MessageAttributes: map[string]*sqs.MessageAttributeValue{
@@ -61,6 +67,10 @@ func (this Sqs) Publish(ctx context.Context, queueName string, payload *types.Ta
 			"Attempts": &sqs.MessageAttributeValue{
 				DataType:    aws.String("Number"),
 				StringValue: aws.String("0"),
+			},
+			"Tags": &sqs.MessageAttributeValue{
+				DataType:    aws.String("String"),
+				StringValue: aws.String(string(tags)),
 			},
 		},
 		MessageBody: &payload.Body,
@@ -95,6 +105,7 @@ func (this Sqs) Pop(ctx context.Context, queueName string, handler types.Handler
 			aws.String("RunAt"),
 			aws.String("NoExpBackoff"),
 			aws.String("Attempts"),
+			aws.String("Tags"),
 		},
 	}
 	for {
@@ -115,6 +126,7 @@ func (this Sqs) Pop(ctx context.Context, queueName string, handler types.Handler
 			attempts := 0
 			noExpBackoffPtr := message.MessageAttributes["NoExpBackoff"]
 			noExpBackoff := false
+			tagsPtr := message.MessageAttributes["Tags"]
 
 			if runAtPtr == nil {
 				log.Println("ERROR kewpie", queueName, "RunAt was nil", message)
@@ -132,6 +144,13 @@ func (this Sqs) Pop(ctx context.Context, queueName string, handler types.Handler
 					continue
 				}
 				attempts = parsed
+			}
+
+			if tagsPtr != nil {
+				if err := json.Unmarshal([]byte(*tagsPtr.StringValue), &task.Tags); err != nil {
+					log.Println("ERROR kewpie", queueName, "Tags was not valid", message, err)
+					continue
+				}
 			}
 
 			runAtString := *runAtPtr.StringValue

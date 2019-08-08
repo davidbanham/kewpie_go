@@ -1,6 +1,7 @@
 package types
 
 import (
+	"database/sql/driver"
 	"encoding/json"
 	"errors"
 	"time"
@@ -13,6 +14,22 @@ type Task struct {
 	RunAt        time.Time     `json:"run_at"`
 	NoExpBackoff bool          `json:"no_exp_backoff"`
 	Attempts     int           `json:"attempts"`
+	Tags         Tags          `json:"tags"`
+}
+
+type Tags map[string]string
+
+func (tags Tags) Value() (driver.Value, error) {
+	return json.Marshal(tags)
+}
+
+func (tags *Tags) Scan(value interface{}) error {
+	b, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+
+	return json.Unmarshal(b, &tags)
 }
 
 func (t Task) Unmarshal(res interface{}) (err error) {

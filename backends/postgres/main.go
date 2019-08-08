@@ -38,13 +38,14 @@ func (this Postgres) Publish(ctx context.Context, queueName string, payload *typ
 	id := uuid.NewV4().String()
 	tableName := nameToTable(queueName)
 
-	if _, err := db.ExecContext(ctx, "INSERT INTO "+tableName+" (id, body, delay, run_at, no_exp_backoff, attempts) VALUES ($1, $2, $3, $4, $5, $6)",
+	if _, err := db.ExecContext(ctx, "INSERT INTO "+tableName+" (id, body, delay, run_at, no_exp_backoff, attempts, tags) VALUES ($1, $2, $3, $4, $5, $6, $7)",
 		id,
 		payload.Body,
 		payload.Delay,
 		payload.RunAt,
 		payload.NoExpBackoff,
 		payload.Attempts,
+		payload.Tags,
 	); err != nil {
 		return err
 	}
@@ -76,10 +77,10 @@ WHERE id = (
   FOR UPDATE SKIP LOCKED 
   LIMIT 1
 )
-RETURNING id, body, delay, run_at, no_exp_backoff, attempts`)
+RETURNING id, body, delay, run_at, no_exp_backoff, attempts, tags`)
 
 		task := types.Task{}
-		if err := row.Scan(&task.ID, &task.Body, &task.Delay, &task.RunAt, &task.NoExpBackoff, &task.Attempts); err != nil {
+		if err := row.Scan(&task.ID, &task.Body, &task.Delay, &task.RunAt, &task.NoExpBackoff, &task.Attempts, &task.Tags); err != nil {
 			if err == sql.ErrNoRows {
 				time.Sleep(1 * time.Second)
 				continue
@@ -155,6 +156,10 @@ created_at TIMESTAMPTZ default NOW(),
 no_exp_backoff BOOL NOT NULL DEFAULT false,
 attempts int NOT NULL DEFAULT 0
 )`); err != nil {
+			return err
+		}
+
+		if _, err := db.Exec(`ALTER TABLE ` + tableName + ` ADD COLUMN IF NOT EXISTS tags JSONB NOT NULL DEFAULT '{}'::jsonb`); err != nil {
 			return err
 		}
 	}

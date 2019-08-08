@@ -14,7 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-//var backends = []string{"memory", "sqs", "postgres"}
+//var backends = []string{"sqs"}
+//var backends = []string{"memory", "postgres", "sqs"}
 var backends = []string{"memory", "postgres"}
 
 type supDawg struct {
@@ -162,14 +163,18 @@ func TestPop(t *testing.T) {
 				return false, nil
 			},
 		}
-		pubTask1 := types.Task{}
+		pubTask1 := types.Task{
+			NoExpBackoff: true,
+		}
 		err := pubTask1.Marshal(supDawg{
 			Sup: uniq1,
 		})
 		if err != nil {
 			t.Fatal("Err in marshaling")
 		}
-		pubTask2 := types.Task{}
+		pubTask2 := types.Task{
+			NoExpBackoff: true,
+		}
 		err = pubTask2.Marshal(supDawg{
 			Sup: uniq2,
 		})
@@ -295,11 +300,15 @@ func TestPurgeMatching(t *testing.T) {
 		match1 := false
 		match2 := false
 
-		pubTask1 := types.Task{}
+		pubTask1 := types.Task{
+			NoExpBackoff: true,
+		}
 		assert.Nil(t, pubTask1.Marshal(supDawg{
 			Sup: uniq1,
 		}))
-		pubTask2 := types.Task{}
+		pubTask2 := types.Task{
+			NoExpBackoff: true,
+		}
 		assert.Nil(t, pubTask2.Marshal(supDawg{
 			Sup: uniq2,
 		}))
@@ -333,6 +342,51 @@ func TestPurgeMatching(t *testing.T) {
 		} else {
 			assert.Equal(t, purgeErr, types.NotImplemented)
 		}
+
+		assert.Nil(t, kewpie.Disconnect())
+	}
+}
+
+func TestTags(t *testing.T) {
+	for _, backend := range backends {
+		kewpie := Kewpie{}
+
+		if err := kewpie.Connect(backend, []string{queueName}); err != nil {
+			log.Fatal("Error connecting to queue")
+		}
+
+		hit := false
+
+		pubTask1 := types.Task{
+			Tags: types.Tags{
+				"name": "monty",
+			},
+			NoExpBackoff: true,
+		}
+		assert.Nil(t, pubTask1.Marshal(supDawg{
+			Sup: "tags",
+		}))
+
+		handler := &testHandler{
+			handleFunc: func(task types.Task) (requeue bool, err error) {
+				monty := supDawg{}
+				task.Unmarshal(&monty)
+
+				if monty.Sup == "tags" {
+					assert.Equal(t, task.Tags["name"], "monty")
+					hit = true
+				}
+
+				return false, nil
+			},
+		}
+
+		ctx := context.Background()
+		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask1))
+
+		go kewpie.Subscribe(ctx, queueName, handler)
+		time.Sleep(1 * time.Second)
+		assert.True(t, hit)
 
 		assert.Nil(t, kewpie.Disconnect())
 	}
