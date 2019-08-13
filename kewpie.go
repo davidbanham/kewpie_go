@@ -81,3 +81,7 @@ func (this Kewpie) Purge(ctx context.Context, queueName string) error {
 func (this Kewpie) PurgeMatching(ctx context.Context, queueName, substr string) error {
 	return this.backend.PurgeMatching(ctx, queueName, substr)
 }
+
+func (this Kewpie) Healthy(ctx context.Context) error {
+	return this.backend.Healthy(ctx)
+}
