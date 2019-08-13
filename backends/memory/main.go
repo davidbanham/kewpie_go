@@ -134,3 +134,7 @@ func (this *MemoryStore) PurgeMatching(ctx context.Context, queueName, substr st
 	}
 	return nil
 }
+
+func (this MemoryStore) Healthy(ctx context.Context) error {
+	return nil
+}

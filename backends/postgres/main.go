@@ -228,6 +228,10 @@ func (this Postgres) PurgeMatching(ctx context.Context, queueName, substr string
 	return nil
 }
 
+func (this Postgres) Healthy(ctx context.Context) error {
+	return this.db.Ping()
+}
+
 func nameToTable(name string) string {
 	name = strings.Replace(name, " ", "_", -1) // no spaces
 	name = strings.Replace(name, "-", "_", -1) // no dashes

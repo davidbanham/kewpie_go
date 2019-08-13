@@ -19,6 +19,7 @@ type Task = types.Task
 type Tags = types.Tags
 
 type Backend interface {
+	Healthy(ctx context.Context) error
 	Publish(ctx context.Context, queueName string, payload *types.Task) error
 	Subscribe(ctx context.Context, queueName string, handler types.Handler) error
 	Pop(ctx context.Context, queueName string, handler types.Handler) error

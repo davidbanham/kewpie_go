@@ -341,3 +341,9 @@ func (this Sqs) Purge(ctx context.Context, queueName string) error {
 func (this Sqs) PurgeMatching(ctx context.Context, queueName, substr string) error {
 	return types.NotImplemented
 }
+
+func (this Sqs) Healthy(ctx context.Context) error {
+	params := sqs.ListQueuesInput{}
+	_, err := this.svc.ListQueues(&params)
+	return err
+}
