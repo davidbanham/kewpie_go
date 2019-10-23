@@ -5,10 +5,10 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/davidbanham/kewpie_go/backends/memory"
-	"github.com/davidbanham/kewpie_go/backends/postgres"
-	"github.com/davidbanham/kewpie_go/backends/sqs"
-	"github.com/davidbanham/kewpie_go/types"
+	"github.com/davidbanham/kewpie_go/v3/backends/memory"
+	"github.com/davidbanham/kewpie_go/v3/backends/postgres"
+	"github.com/davidbanham/kewpie_go/v3/backends/sqs"
+	"github.com/davidbanham/kewpie_go/v3/types"
 )
 
 type Kewpie struct {

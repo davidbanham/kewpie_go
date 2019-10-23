@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/davidbanham/kewpie_go/types"
+	"github.com/davidbanham/kewpie_go/v3/types"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 )

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davidbanham/kewpie_go/types"
-	"github.com/davidbanham/kewpie_go/util"
+	"github.com/davidbanham/kewpie_go/v3/types"
+	"github.com/davidbanham/kewpie_go/v3/util"
 	"github.com/davidbanham/required_env"
 	_ "github.com/lib/pq"
 	uuid "github.com/satori/go.uuid"

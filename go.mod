@@ -1,4 +1,4 @@
-module github.com/davidbanham/kewpie_go
+module github.com/davidbanham/kewpie_go/v3
 
 require (
 	github.com/aws/aws-sdk-go v1.13.16

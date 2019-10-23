@@ -11,8 +11,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/davidbanham/kewpie_go/types"
-	"github.com/davidbanham/kewpie_go/util"
+	"github.com/davidbanham/kewpie_go/v3/types"
+	"github.com/davidbanham/kewpie_go/v3/util"
 )
 
 type Sqs struct {
