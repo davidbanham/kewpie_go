@@ -121,11 +121,7 @@ RETURNING id, body, delay, run_at, no_exp_backoff, attempts, tags`)
 			if requeue {
 				task.Attempts += 1
 				if !task.NoExpBackoff {
-					task.Delay, err = util.CalcBackoff(task.Attempts + 1)
-					if err != nil {
-						log.Println("ERROR kewpie", queueName, "Failed to calc backoff", queueName, task, err)
-						return err
-					}
+					task.Delay = util.CalcBackoff(task.Attempts + 1)
 				}
 				if err := this.Publish(ctx, queueName, &task); err != nil {
 					return err
