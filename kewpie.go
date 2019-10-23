@@ -2,6 +2,7 @@ package kewpie
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/davidbanham/kewpie_go/backends/memory"
@@ -52,7 +53,7 @@ func (this Kewpie) Pop(ctx context.Context, queueName string, handler types.Hand
 	return this.backend.Pop(ctx, queueName, handler)
 }
 
-func (this *Kewpie) Connect(backend string, queues []string) (err error) {
+func (this *Kewpie) Connect(backend string, queues []string, connection interface{}) (err error) {
 	this.queues = queues
 
 	switch backend {
@@ -61,7 +62,9 @@ func (this *Kewpie) Connect(backend string, queues []string) (err error) {
 	case "sqs":
 		this.backend = &sqs.Sqs{}
 	case "postgres":
-		this.backend = &postgres.Postgres{}
+		pgbe := &postgres.Postgres{}
+		pgbe.PassConnection(connection.(*sql.DB))
+		this.backend = pgbe
 	default:
 		return types.UnknownBackend
 	}

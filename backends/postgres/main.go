@@ -147,22 +147,30 @@ func (this Postgres) Subscribe(ctx context.Context, queueName string, handler ty
 	}
 }
 
+func (this *Postgres) PassConnection(connection *sql.DB) {
+	this.db = connection
+}
+
+func (this *Postgres) Connect() (*sql.DB, error) {
+	return sql.Open("postgres", os.Getenv("DB_URI"))
+}
+
 func (this *Postgres) Init(queues []string) error {
 	required_env.Ensure(map[string]string{
 		"DB_URI": "",
 	})
 
-	dbURI := os.Getenv("DB_URI")
-	db, err := sql.Open("postgres", dbURI)
-	if err != nil {
-		return err
+	if this.db == nil {
+		db, err := this.Connect()
+		if err != nil {
+			return err
+		}
+		this.db = db
 	}
-
-	this.db = db
 
 	for _, name := range queues {
 		tableName := nameToTable(name)
-		if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS ` + tableName + ` (
+		if _, err := this.db.Exec(`CREATE TABLE IF NOT EXISTS ` + tableName + ` (
 id UUID PRIMARY KEY,
 body TEXT NOT NULL DEFAULT '',
 delay BIGINT NOT NULL DEFAULT 0,
@@ -174,7 +182,7 @@ attempts int NOT NULL DEFAULT 0
 			return err
 		}
 
-		if _, err := db.Exec(`ALTER TABLE ` + tableName + ` ADD COLUMN IF NOT EXISTS tags JSONB NOT NULL DEFAULT '{}'::jsonb`); err != nil {
+		if _, err := this.db.Exec(`ALTER TABLE ` + tableName + ` ADD COLUMN IF NOT EXISTS tags JSONB NOT NULL DEFAULT '{}'::jsonb`); err != nil {
 			return err
 		}
 	}

@@ -2,6 +2,7 @@ package kewpie
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"os"
@@ -16,7 +17,12 @@ import (
 
 //var backends = []string{"sqs"}
 //var backends = []string{"memory", "postgres", "sqs"}
-var backends = []string{"memory", "postgres"}
+var backends = []testBackend{testBackend{"memory", nil}, testBackend{"postgres", nil}}
+
+type testBackend struct {
+	Identifier string
+	Connection *sql.DB
+}
 
 type supDawg struct {
 	Sup string
@@ -34,7 +40,15 @@ func init() {
 	for _, backend := range backends {
 		kewpie := Kewpie{}
 
-		if err := kewpie.Connect(backend, []string{queueName}); err != nil {
+		if backend.Identifier == "postgres" {
+			db, err := sql.Open("postgres", os.Getenv("DB_URI"))
+			if err != nil {
+				log.Fatal(err)
+			}
+			backend.Connection = db
+		}
+
+		if err := kewpie.Connect(backend.Identifier, []string{queueName}, backend.Connection); err != nil {
 			log.Fatal(err)
 		}
 
@@ -72,7 +86,7 @@ func TestSubscribe(t *testing.T) {
 	for _, backend := range backends {
 		kewpie := Kewpie{}
 
-		if err := kewpie.Connect(backend, []string{queueName}); err != nil {
+		if err := kewpie.Connect(backend.Identifier, []string{queueName}, backend.Connection); err != nil {
 			log.Fatal("Error connecting to queue")
 		}
 
@@ -138,7 +152,7 @@ func TestPop(t *testing.T) {
 	for _, backend := range backends {
 		kewpie := Kewpie{}
 
-		if err := kewpie.Connect(backend, []string{queueName}); err != nil {
+		if err := kewpie.Connect(backend.Identifier, []string{queueName}, backend.Connection); err != nil {
 			log.Fatal("Error connecting to queue")
 		}
 
@@ -208,7 +222,7 @@ func TestRequeueing(t *testing.T) {
 
 		kewpie := Kewpie{}
 
-		if err := kewpie.Connect(backend, []string{queueName}); err != nil {
+		if err := kewpie.Connect(backend.Identifier, []string{queueName}, backend.Connection); err != nil {
 			log.Fatal("Error connecting to queue")
 		}
 
@@ -229,7 +243,7 @@ func TestRequeueing(t *testing.T) {
 					if task.Attempts > 3 {
 						return false, nil
 					}
-					return true, fmt.Errorf("Keep going!" + backend)
+					return true, fmt.Errorf("Keep going!" + backend.Identifier)
 				}
 				if monty.Sup == uniq2 {
 					matched2 += 1
@@ -291,7 +305,7 @@ func TestPurgeMatching(t *testing.T) {
 	for _, backend := range backends {
 		kewpie := Kewpie{}
 
-		if err := kewpie.Connect(backend, []string{queueName}); err != nil {
+		if err := kewpie.Connect(backend.Identifier, []string{queueName}, backend.Connection); err != nil {
 			log.Fatal("Error connecting to queue")
 		}
 
@@ -351,7 +365,7 @@ func TestTags(t *testing.T) {
 	for _, backend := range backends {
 		kewpie := Kewpie{}
 
-		if err := kewpie.Connect(backend, []string{queueName}); err != nil {
+		if err := kewpie.Connect(backend.Identifier, []string{queueName}, backend.Connection); err != nil {
 			log.Fatal("Error connecting to queue")
 		}
 
@@ -395,12 +409,12 @@ func TestTags(t *testing.T) {
 func TestCancel(t *testing.T) {
 	for _, backend := range backends {
 		hangTime := 1100 * time.Millisecond
-		if backend == "sqs" {
+		if backend.Identifier == "sqs" {
 			hangTime = 21 * time.Second
 		}
 		kewpie := Kewpie{}
 
-		if err := kewpie.Connect(backend, []string{queueName}); err != nil {
+		if err := kewpie.Connect(backend.Identifier, []string{queueName}, backend.Connection); err != nil {
 			log.Fatal("Error connecting to queue")
 		}
 
