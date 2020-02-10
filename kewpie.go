@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"time"
 
+	"github.com/davidbanham/kewpie_go/v3/backends/googlepubsub"
 	"github.com/davidbanham/kewpie_go/v3/backends/memory"
 	"github.com/davidbanham/kewpie_go/v3/backends/postgres"
 	"github.com/davidbanham/kewpie_go/v3/backends/sqs"
@@ -65,6 +66,8 @@ func (this *Kewpie) Connect(backend string, queues []string, connection interfac
 		pgbe := &postgres.Postgres{}
 		pgbe.PassConnection(connection.(*sql.DB))
 		this.backend = pgbe
+	case "google_pubsub":
+		this.backend = &googlepubsub.PubSub{}
 	default:
 		return types.UnknownBackend
 	}

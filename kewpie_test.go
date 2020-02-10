@@ -19,6 +19,8 @@ import (
 //var backends = []string{"memory", "postgres", "sqs"}
 var backends = []testBackend{testBackend{"memory", nil}, testBackend{"postgres", nil}}
 
+//var backends = []testBackend{testBackend{"google_pubsub", nil}}
+
 type testBackend struct {
 	Identifier string
 	Connection *sql.DB
