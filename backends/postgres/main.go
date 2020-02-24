@@ -73,7 +73,19 @@ func (this Postgres) Pop(ctx context.Context, queueName string, handler types.Ha
 	}
 
 	if ctx.Value("tx") == nil {
-		ctx = context.WithValue(ctx, "tx", this.db)
+		tx, err := this.db.BeginTx(ctx, nil)
+		if err != nil {
+			if err == context.Canceled {
+				return types.SubscriptionCancelled
+			}
+			return err
+		}
+		ctx = context.WithValue(ctx, "tx", tx)
+		defer (func() {
+			if err := tx.Commit(); err != nil {
+				log.Println("ERROR committing transaction", err)
+			}
+		})()
 	}
 
 	db := ctx.Value("tx").(Querier)

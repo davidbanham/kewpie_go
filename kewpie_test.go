@@ -133,7 +133,9 @@ func TestSubscribe(t *testing.T) {
 		}
 
 		ctx := context.Background()
-		go assert.Nil(t, kewpie.Subscribe(ctx, queueName, handler))
+		go (func() {
+			assert.Nil(t, kewpie.Subscribe(ctx, queueName, handler))
+		})()
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask1))
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask2))
 		time.Sleep(5 * time.Second)
@@ -199,7 +201,9 @@ func TestPop(t *testing.T) {
 		}
 
 		ctx := context.Background()
-		go assert.Nil(t, kewpie.Pop(ctx, queueName, handler))
+		go (func() {
+			assert.Nil(t, kewpie.Pop(ctx, queueName, handler))
+		})()
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask1))
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask2))
 		time.Sleep(5 * time.Second)
@@ -349,7 +353,9 @@ func TestPurgeMatching(t *testing.T) {
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask2))
 
 		if purgeErr := kewpie.PurgeMatching(ctx, queueName, uniq1); purgeErr == nil {
-			go assert.Nil(t, kewpie.Subscribe(ctx, queueName, handler))
+			go (func() {
+				assert.Nil(t, kewpie.Subscribe(ctx, queueName, handler))
+			})()
 
 			time.Sleep(5 * time.Second)
 
@@ -400,7 +406,9 @@ func TestTags(t *testing.T) {
 		ctx := context.Background()
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask1))
 
-		go assert.Nil(t, kewpie.Subscribe(ctx, queueName, handler))
+		go (func() {
+			assert.Nil(t, kewpie.Subscribe(ctx, queueName, handler))
+		})()
 		time.Sleep(1 * time.Second)
 		assert.True(t, hit)
 

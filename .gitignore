@@ -1,2 +1,3 @@
 .envrc
 /vendor
+google_credentials.json
