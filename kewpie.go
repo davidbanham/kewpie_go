@@ -3,6 +3,7 @@ package kewpie
 import (
 	"context"
 	"database/sql"
+	"log"
 	"time"
 
 	"github.com/davidbanham/kewpie_go/v3/backends/googlepubsub"
@@ -64,7 +65,13 @@ func (this *Kewpie) Connect(backend string, queues []string, connection interfac
 		this.backend = &sqs.Sqs{}
 	case "postgres":
 		pgbe := &postgres.Postgres{}
-		pgbe.PassConnection(connection.(*sql.DB))
+
+		switch v := connection.(type) {
+		case nil:
+			log.Println("No connection passed. PG backend will instantiate internally")
+		case *sql.DB:
+			pgbe.PassConnection(v)
+		}
 		this.backend = pgbe
 	case "google_pubsub":
 		this.backend = &googlepubsub.PubSub{}

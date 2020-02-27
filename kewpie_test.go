@@ -60,6 +60,11 @@ func init() {
 	}
 }
 
+func TestPGInit(t *testing.T) {
+	kewpie := Kewpie{}
+	assert.Nil(t, kewpie.Connect("postgres", []string{queueName}, nil))
+}
+
 func TestUnmarshal(t *testing.T) {
 	task := types.Task{
 		Body: `{"Sup": "woof"}`,
