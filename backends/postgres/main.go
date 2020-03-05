@@ -189,12 +189,9 @@ delay BIGINT NOT NULL DEFAULT 0,
 run_at TIMESTAMPTZ default NOW(),
 created_at TIMESTAMPTZ default NOW(),
 no_exp_backoff BOOL NOT NULL DEFAULT false,
-attempts int NOT NULL DEFAULT 0
+attempts int NOT NULL DEFAULT 0,
+tags JSONB NOT NULL DEFAULT '{}'::jsonb
 )`); err != nil {
-			return err
-		}
-
-		if _, err := this.db.Exec(`ALTER TABLE ` + tableName + ` ADD COLUMN IF NOT EXISTS tags JSONB NOT NULL DEFAULT '{}'::jsonb`); err != nil {
 			return err
 		}
 	}
