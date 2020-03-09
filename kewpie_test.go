@@ -157,6 +157,53 @@ func TestSubscribe(t *testing.T) {
 	}
 }
 
+func TestSubscribeFailures(t *testing.T) {
+	// Ensure that when a pod fails a task it continues to consume future jobs
+	for _, backend := range backends {
+		kewpie := Kewpie{}
+
+		if err := kewpie.Connect(backend.Identifier, []string{queueName}, backend.Connection); err != nil {
+			log.Fatal("Error connecting to queue")
+		}
+
+		fired := 0
+		uniq1 := uuid.NewV4().String()
+
+		handler := &testHandler{
+			handleFunc: func(task types.Task) (requeue bool, err error) {
+				fired += 1
+				return false, fmt.Errorf("Something bad happen")
+			},
+		}
+		pubTask1 := types.Task{
+			NoExpBackoff: true,
+		}
+		err := pubTask1.Marshal(supDawg{
+			Sup: uniq1,
+		})
+		if err != nil {
+			t.Fatal("Err in marshaling")
+		}
+
+		ctx := context.Background()
+		go (func() {
+			assert.Nil(t, kewpie.Subscribe(ctx, queueName, handler))
+		})()
+		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask1))
+		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask1))
+		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask1))
+		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask1))
+
+		time.Sleep(5 * time.Second)
+
+		if fired < 4 {
+			t.Fatal("Didn't fire enough", backend)
+		}
+
+		assert.Nil(t, kewpie.Disconnect())
+	}
+}
+
 func TestPop(t *testing.T) {
 	for _, backend := range backends {
 		kewpie := Kewpie{}
