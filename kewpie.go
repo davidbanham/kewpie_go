@@ -32,7 +32,7 @@ type Backend interface {
 	PurgeMatching(ctx context.Context, queueName, substr string) error
 }
 
-func (this Kewpie) Publish(ctx context.Context, queueName string, payload *types.Task) (err error) {
+func (this Kewpie) Publish(ctx context.Context, queueName string, payload *types.Task) error {
 	// Set RunAt based on the info from Delay
 	if payload.Delay != 0 {
 		payload.RunAt = time.Now().Add(payload.Delay)
@@ -42,12 +42,10 @@ func (this Kewpie) Publish(ctx context.Context, queueName string, payload *types
 
 	payload.Delay = payload.RunAt.Sub(time.Now())
 
-	err = this.backend.Publish(ctx, queueName, payload)
-
-	return
+	return this.backend.Publish(ctx, queueName, payload)
 }
 
-func (this Kewpie) Subscribe(ctx context.Context, queueName string, handler types.Handler) (err error) {
+func (this Kewpie) Subscribe(ctx context.Context, queueName string, handler types.Handler) error {
 	return this.backend.Subscribe(ctx, queueName, handler)
 }
 
@@ -55,7 +53,7 @@ func (this Kewpie) Pop(ctx context.Context, queueName string, handler types.Hand
 	return this.backend.Pop(ctx, queueName, handler)
 }
 
-func (this *Kewpie) Connect(backend string, queues []string, connection interface{}) (err error) {
+func (this *Kewpie) Connect(backend string, queues []string, connection interface{}) error {
 	this.queues = queues
 
 	switch backend {
@@ -79,8 +77,7 @@ func (this *Kewpie) Connect(backend string, queues []string, connection interfac
 		return types.UnknownBackend
 	}
 
-	err = this.backend.Init(queues)
-	return
+	return this.backend.Init(queues)
 }
 
 func (this Kewpie) Disconnect() error {
