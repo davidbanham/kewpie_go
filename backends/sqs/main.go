@@ -97,10 +97,6 @@ func (this Sqs) Pop(ctx context.Context, queueName string, handler types.Handler
 		}
 	}()
 
-	if this.closed {
-		return types.ConnectionClosed
-	}
-
 	url := this.urls[queueName]
 	if url == "" {
 		return types.QueueNotFound
@@ -123,6 +119,10 @@ func (this Sqs) Pop(ctx context.Context, queueName string, handler types.Handler
 	for {
 		if cancelled {
 			return types.SubscriptionCancelled
+		}
+
+		if this.closed {
+			return types.ConnectionClosed
 		}
 
 		response, err := this.svc.ReceiveMessage(&params)
