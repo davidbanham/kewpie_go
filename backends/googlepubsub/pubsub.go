@@ -49,6 +49,10 @@ func (this PubSub) Publish(ctx context.Context, queueName string, payload *types
 func (this PubSub) Pop(ctx context.Context, queueName string, handler types.Handler) error {
 	return types.NotImplemented
 
+	if this.closed {
+		return types.ConnectionClosed
+	}
+
 	sub, err := this.client.CreateSubscription(context.Background(), uuid.NewV4().String(), pubsub.SubscriptionConfig{Topic: this.topics[queueName]})
 
 	if err != nil {
