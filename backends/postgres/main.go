@@ -55,7 +55,7 @@ func (this Postgres) Publish(ctx context.Context, queueName string, payload *typ
 	return nil
 }
 
-func (this Postgres) Pop(ctx context.Context, queueName string, handler types.Handler) error {
+func (this *Postgres) Pop(ctx context.Context, queueName string, handler types.Handler) error {
 	cancelled := false
 
 	go func() {
@@ -84,6 +84,7 @@ func (this Postgres) Pop(ctx context.Context, queueName string, handler types.Ha
 		defer (func() {
 			if err := tx.Commit(); err != nil {
 				log.Println("ERROR committing transaction", err)
+				this.closed = true
 			}
 		})()
 	}
