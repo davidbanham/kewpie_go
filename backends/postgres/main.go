@@ -98,6 +98,10 @@ func (this *Postgres) Pop(ctx context.Context, queueName string, handler types.H
 			return types.SubscriptionCancelled
 		}
 
+		if this.closed {
+			return types.ConnectionClosed
+		}
+
 		row := db.QueryRowContext(ctx, `DELETE FROM `+tableName+`
 WHERE id = (
   SELECT id FROM `+tableName+`
