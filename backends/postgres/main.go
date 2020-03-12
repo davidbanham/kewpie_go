@@ -98,10 +98,6 @@ func (this *Postgres) Pop(ctx context.Context, queueName string, handler types.H
 			return types.SubscriptionCancelled
 		}
 
-		if this.closed {
-			return types.ConnectionClosed
-		}
-
 		row := db.QueryRowContext(ctx, `DELETE FROM `+tableName+`
 WHERE id = (
   SELECT id FROM `+tableName+`
@@ -116,10 +112,6 @@ RETURNING id, body, delay, run_at, no_exp_backoff, attempts, tags`)
 		if err := row.Scan(&task.ID, &task.Body, &task.Delay, &task.RunAt, &task.NoExpBackoff, &task.Attempts, &task.Tags); err != nil {
 			if err == sql.ErrNoRows {
 				time.Sleep(1 * time.Second)
-				if err := this.db.Ping(); err != nil {
-					log.Println("ERROR postgres database ping", err.Error())
-					this.closed = true
-				}
 				continue
 				//return this.Pop(ctx, queueName, handler)
 			}
