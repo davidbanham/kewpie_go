@@ -148,8 +148,6 @@ RETURNING id, body, delay, run_at, no_exp_backoff, attempts, tags`)
 
 		return nil
 	}
-
-	return nil
 }
 
 func (this Postgres) Subscribe(ctx context.Context, queueName string, handler types.Handler) error {
