@@ -166,7 +166,7 @@ func (this *Postgres) PassConnection(connection *sql.DB) {
 	this.db = connection
 }
 
-func (this *Postgres) Connect() (*sql.DB, error) {
+func (this *Postgres) connect() (*sql.DB, error) {
 	return sql.Open("postgres", os.Getenv("DB_URI"))
 }
 
@@ -176,7 +176,7 @@ func (this *Postgres) Init(queues []string) error {
 	})
 
 	if this.db == nil {
-		db, err := this.Connect()
+		db, err := this.connect()
 		if err != nil {
 			return err
 		}
