@@ -190,11 +190,12 @@ func TestSubscribeFailures(t *testing.T) {
 			assert.Equal(t, types.SubscriptionCancelled, kewpie.Subscribe(ctx, queueName, handler))
 		})()
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask1))
+		time.Sleep(2 * time.Second)
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask1))
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask1))
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask1))
 
-		time.Sleep(5 * time.Second)
+		time.Sleep(8 * time.Second)
 
 		if fired < 4 {
 			t.Fatal("Didn't fire enough", backend)
