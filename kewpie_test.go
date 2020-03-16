@@ -137,9 +137,9 @@ func TestSubscribe(t *testing.T) {
 			t.Fatal("Err in marshaling")
 		}
 
-		ctx := context.Background()
+		ctx, cancel := context.WithCancel(context.Background())
 		go (func() {
-			assert.Nil(t, kewpie.Subscribe(ctx, queueName, handler))
+			assert.Equal(t, types.SubscriptionCancelled, kewpie.Subscribe(ctx, queueName, handler))
 		})()
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask1))
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask2))
@@ -153,7 +153,7 @@ func TestSubscribe(t *testing.T) {
 			}
 		}
 
-		assert.Nil(t, kewpie.Disconnect())
+		cancel()
 	}
 }
 
@@ -185,9 +185,9 @@ func TestSubscribeFailures(t *testing.T) {
 			t.Fatal("Err in marshaling")
 		}
 
-		ctx := context.Background()
+		ctx, cancel := context.WithCancel(context.Background())
 		go (func() {
-			assert.Nil(t, kewpie.Subscribe(ctx, queueName, handler))
+			assert.Equal(t, types.SubscriptionCancelled, kewpie.Subscribe(ctx, queueName, handler))
 		})()
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask1))
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask1))
@@ -200,7 +200,7 @@ func TestSubscribeFailures(t *testing.T) {
 			t.Fatal("Didn't fire enough", backend)
 		}
 
-		assert.Nil(t, kewpie.Disconnect())
+		cancel()
 	}
 }
 
@@ -252,7 +252,7 @@ func TestPop(t *testing.T) {
 			t.Fatal("Err in marshaling")
 		}
 
-		ctx := context.Background()
+		ctx, cancel := context.WithCancel(context.Background())
 		go (func() {
 			assert.Nil(t, kewpie.Pop(ctx, queueName, handler))
 		})()
@@ -271,7 +271,7 @@ func TestPop(t *testing.T) {
 			}
 		}
 
-		assert.Nil(t, kewpie.Disconnect())
+		cancel()
 	}
 }
 
@@ -341,9 +341,9 @@ func TestRequeueing(t *testing.T) {
 		pubTask2.NoExpBackoff = true
 		pubTask3.NoExpBackoff = true
 
-		ctx := context.Background()
+		ctx, cancel := context.WithCancel(context.Background())
 		go (func() {
-			kewpie.Subscribe(ctx, queueName, handler)
+			assert.Equal(t, types.SubscriptionCancelled, kewpie.Subscribe(ctx, queueName, handler))
 		})()
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask))
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask2))
@@ -355,7 +355,7 @@ func TestRequeueing(t *testing.T) {
 		assert.Equal(t, 1, matched2, backend)
 		assert.Equal(t, 1, matched3, backend)
 
-		assert.Nil(t, kewpie.Disconnect())
+		cancel()
 	}
 }
 
@@ -400,13 +400,13 @@ func TestPurgeMatching(t *testing.T) {
 			},
 		}
 
-		ctx := context.Background()
+		ctx, cancel := context.WithCancel(context.Background())
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask1))
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask2))
 
 		if purgeErr := kewpie.PurgeMatching(ctx, queueName, uniq1); purgeErr == nil {
 			go (func() {
-				assert.Nil(t, kewpie.Subscribe(ctx, queueName, handler))
+				assert.Equal(t, types.SubscriptionCancelled, kewpie.Subscribe(ctx, queueName, handler))
 			})()
 
 			time.Sleep(5 * time.Second)
@@ -417,7 +417,7 @@ func TestPurgeMatching(t *testing.T) {
 			assert.Equal(t, purgeErr, types.NotImplemented)
 		}
 
-		assert.Nil(t, kewpie.Disconnect())
+		cancel()
 	}
 }
 
@@ -455,16 +455,16 @@ func TestTags(t *testing.T) {
 			},
 		}
 
-		ctx := context.Background()
+		ctx, cancel := context.WithCancel(context.Background())
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask1))
 
 		go (func() {
-			assert.Nil(t, kewpie.Subscribe(ctx, queueName, handler))
+			assert.Equal(t, types.SubscriptionCancelled, kewpie.Subscribe(ctx, queueName, handler))
 		})()
 		time.Sleep(1 * time.Second)
 		assert.True(t, hit)
 
-		assert.Nil(t, kewpie.Disconnect())
+		cancel()
 	}
 }
 
@@ -490,8 +490,7 @@ func TestCancel(t *testing.T) {
 
 		hit := false
 		go (func() {
-			err := kewpie.Subscribe(ctx, queueName, handler)
-			assert.Equal(t, types.SubscriptionCancelled, err)
+			assert.Equal(t, types.SubscriptionCancelled, kewpie.Subscribe(ctx, queueName, handler))
 			hit = true
 		})()
 
