@@ -72,25 +72,6 @@ func (this *Postgres) Pop(ctx context.Context, queueName string, handler types.H
 		return types.ConnectionClosed
 	}
 
-	if ctx.Value("tx") == nil {
-		tx, err := this.db.BeginTx(ctx, nil)
-		if err != nil {
-			if err == context.Canceled {
-				return types.SubscriptionCancelled
-			}
-			return err
-		}
-		ctx = context.WithValue(ctx, "tx", tx)
-		defer (func() {
-			if err := tx.Commit(); err != nil {
-				log.Println("ERROR committing transaction", err)
-				this.closed = true
-			}
-		})()
-	}
-
-	db := ctx.Value("tx").(Querier)
-
 	tableName := nameToTable(queueName)
 
 	for {
@@ -102,7 +83,15 @@ func (this *Postgres) Pop(ctx context.Context, queueName string, handler types.H
 			return types.ConnectionClosed
 		}
 
-		row := db.QueryRowContext(ctx, `DELETE FROM `+tableName+`
+		tx, err := this.db.BeginTx(ctx, nil)
+		if err != nil {
+			if err == context.Canceled {
+				return types.SubscriptionCancelled
+			}
+			return err
+		}
+
+		row := tx.QueryRowContext(ctx, `DELETE FROM `+tableName+`
 WHERE id = (
   SELECT id FROM `+tableName+`
 	WHERE run_at < NOW()
@@ -115,6 +104,10 @@ RETURNING id, body, delay, run_at, no_exp_backoff, attempts, tags`)
 		task := types.Task{}
 		if err := row.Scan(&task.ID, &task.Body, &task.Delay, &task.RunAt, &task.NoExpBackoff, &task.Attempts, &task.Tags); err != nil {
 			if err == sql.ErrNoRows {
+				if err := tx.Commit(); err != nil {
+					log.Println("ERROR committing transaction", err)
+					this.closed = true
+				}
 				time.Sleep(1 * time.Second)
 				continue
 				//return this.Pop(ctx, queueName, handler)
@@ -140,10 +133,15 @@ RETURNING id, body, delay, run_at, no_exp_backoff, attempts, tags`)
 				if !task.NoExpBackoff {
 					task.Delay = util.CalcBackoff(task.Attempts + 1)
 				}
-				if err := this.Publish(ctx, queueName, &task); err != nil {
+				if err := this.Publish(context.WithValue(ctx, "tx", tx), queueName, &task); err != nil {
 					return err
 				}
 			}
+		}
+
+		if err := tx.Commit(); err != nil {
+			log.Println("ERROR committing transaction", err)
+			this.closed = true
 		}
 
 		return nil
