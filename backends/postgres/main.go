@@ -132,6 +132,7 @@ RETURNING id, body, delay, run_at, no_exp_backoff, attempts, tags`)
 				task.Attempts += 1
 				if !task.NoExpBackoff {
 					task.Delay = util.CalcBackoff(task.Attempts + 1)
+					task.RunAt = time.Now().Add(task.Delay)
 				}
 				if err := this.Publish(context.WithValue(ctx, "tx", tx), queueName, &task); err != nil {
 					return err

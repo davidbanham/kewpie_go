@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/davidbanham/kewpie_go/v3/types"
+	"github.com/davidbanham/kewpie_go/v3/util"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -80,6 +81,10 @@ func (this *MemoryStore) Pop(ctx context.Context, queueName string, handler type
 				log.Println("ERROR kewpie task handler", err)
 				if requeue {
 					task.Attempts += 1
+					if !task.NoExpBackoff {
+						task.Delay = util.CalcBackoff(task.Attempts + 1)
+						task.RunAt = time.Now().Add(task.Delay)
+					}
 					this.tasks[queueName] = append(this.tasks[queueName], task)
 				}
 			}

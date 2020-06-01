@@ -202,6 +202,7 @@ func (this Sqs) Pop(ctx context.Context, queueName string, handler types.Handler
 					task.Attempts += 1
 					if !noExpBackoff {
 						task.Delay = util.CalcBackoff(attempts)
+						task.RunAt = time.Now().Add(task.Delay)
 					}
 					log.Println("DEBUG kewpie", queueName, "Republishing failed task", task)
 					if err := this.Publish(ctx, queueName, &task); err != nil {
