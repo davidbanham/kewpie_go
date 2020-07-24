@@ -10,7 +10,9 @@ The currently supported backends are:
 3. Memory (designed for testing only)
 4. Google PubSub (in progress, not yet ready for production)
 
-```
+### Example
+
+``` Go
 package main
 
 import (
