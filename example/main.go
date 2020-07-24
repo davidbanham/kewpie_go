@@ -15,6 +15,9 @@ type demoPayload struct {
 
 type demoHandler struct{}
 
+// Here we define a handler function that satisfies the Handler interface kewpie expects.
+// It takes in a task and returns an error if the handling fails
+// If the error is non-nil, the boolean tells kewpie whether or not the task should be retried
 func (demoHandler) Handle(task kewpie.Task) (bool, error) {
 	payload := demoPayload{}
 
@@ -39,26 +42,31 @@ func main() {
 
 	task := kewpie.Task{}
 
+	// Marshal serialises our payload struct into the internal JSON representation
 	if err := task.Marshal(demoPayload{
 		Hello: ", world!",
 	}); err != nil {
 		log.Fatal(err)
 	}
 
+	// In production we'd often use a request context, or a context with a cancel function
 	ctx := context.Background()
 
 	if err := queue.Publish(ctx, queueName, &task); err != nil {
 		log.Fatal(err)
 	}
 
+	// This is just to neatly exit our example code once we've published and consumed a task
 	go (func() {
 		time.Sleep(1 * time.Second)
 		queue.Disconnect()
 		os.Exit(0)
 	})()
 
+	// Instantiate our handler. In reality we may want to pass a custom handle function or instantiate some other variables on it.
 	handler := &demoHandler{}
 
+	// Subscribe to the queue. This will call the handler's Handle method with any tasks we receive
 	if err := queue.Subscribe(ctx, queueName, handler); err != nil {
 		log.Fatal(err)
 	}
