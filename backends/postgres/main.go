@@ -165,17 +165,17 @@ func (this *Postgres) PassConnection(connection *sql.DB) {
 	this.db = connection
 }
 
-func (this *Postgres) connect() (*sql.DB, error) {
-	return sql.Open("postgres", os.Getenv("DB_URI"))
+func (this *Postgres) connect(uri string) (*sql.DB, error) {
+	return sql.Open("postgres", uri)
 }
 
 func (this *Postgres) Init(queues []string) error {
-	required_env.Ensure(map[string]string{
-		"DB_URI": "",
-	})
-
 	if this.db == nil {
-		db, err := this.connect()
+		required_env.Ensure(map[string]string{
+			"DB_URI": "",
+		})
+
+		db, err := this.connect(os.Getenv("DB_URI"))
 		if err != nil {
 			return err
 		}
