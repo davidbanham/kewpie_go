@@ -3,6 +3,7 @@ package kewpie
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"time"
 
@@ -20,6 +21,12 @@ type Kewpie struct {
 
 type Task = types.Task
 type Tags = types.Tags
+
+type BufferedTask struct {
+	QueueName string
+	Task      *Task
+}
+type Buffer []BufferedTask
 
 type Backend interface {
 	Healthy(ctx context.Context) error
@@ -94,4 +101,39 @@ func (this Kewpie) PurgeMatching(ctx context.Context, queueName, substr string) 
 
 func (this Kewpie) Healthy(ctx context.Context) error {
 	return this.backend.Healthy(ctx)
+}
+
+func (this Kewpie) Buffer(ctx context.Context, queueName string, payload *Task) context.Context {
+	buffer := Buffer{}
+	unconv := ctx.Value("kewpie_buffer")
+	if unconv != nil {
+		buffer = unconv.(Buffer)
+	}
+	buffer = append(buffer, BufferedTask{
+		QueueName: queueName,
+		Task:      payload,
+	})
+	return context.WithValue(ctx, "kewpie_buffer", buffer)
+}
+
+func (this Kewpie) Drain(ctx context.Context) error {
+	unconv := ctx.Value("kewpie_buffer")
+	if unconv == nil {
+		return nil
+	}
+	buffer := unconv.(Buffer)
+	errors := []error{}
+	for _, bufferedTask := range buffer {
+		if err := this.Publish(ctx, bufferedTask.QueueName, bufferedTask.Task); err != nil {
+			errors = append(errors, err)
+		}
+	}
+	if len(errors) > 0 {
+		var outerErr error
+		for _, err := range errors {
+			outerErr = fmt.Errorf("%w", err)
+		}
+		return fmt.Errorf("%w; One or more tasks failed to publish", outerErr)
+	}
+	return nil
 }

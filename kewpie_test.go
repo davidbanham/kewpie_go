@@ -157,6 +157,79 @@ func TestSubscribe(t *testing.T) {
 	}
 }
 
+func TestBuffer(t *testing.T) {
+	for _, backend := range backends {
+		kewpie := Kewpie{}
+
+		if err := kewpie.Connect(backend.Identifier, []string{queueName}, backend.Connection); err != nil {
+			log.Fatal("Error connecting to queue")
+		}
+
+		fired := 0
+		uniq1 := uuid.NewV4().String()
+		uniq2 := uuid.NewV4().String()
+		match1 := false
+		match2 := false
+
+		handler := &testHandler{
+			handleFunc: func(task types.Task) (requeue bool, err error) {
+				fired = fired + 1
+				monty := supDawg{}
+				task.Unmarshal(&monty)
+
+				if monty.Sup == uniq1 {
+					match1 = true
+				}
+				if monty.Sup == uniq2 {
+					match2 = true
+				}
+				return false, nil
+			},
+		}
+		pubTask1 := types.Task{
+			NoExpBackoff: true,
+		}
+		err := pubTask1.Marshal(supDawg{
+			Sup: uniq1,
+		})
+		if err != nil {
+			t.Fatal("Err in marshaling")
+		}
+		pubTask2 := types.Task{
+			NoExpBackoff: true,
+		}
+		err = pubTask2.Marshal(supDawg{
+			Sup: uniq2,
+		})
+		if err != nil {
+			t.Fatal("Err in marshaling")
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		go (func() {
+			assert.Equal(t, types.SubscriptionCancelled, kewpie.Subscribe(ctx, queueName, handler))
+		})()
+		ctx = kewpie.Buffer(ctx, queueName, &pubTask1)
+		ctx = kewpie.Buffer(ctx, queueName, &pubTask2)
+		time.Sleep(2 * time.Second)
+		if fired > 0 {
+			t.Fatal("Should not have fired yet")
+		}
+		assert.Nil(t, kewpie.Drain(ctx))
+		time.Sleep(5 * time.Second)
+		if fired < 2 {
+			t.Fatal("Didn't fire enough", backend)
+		}
+		if !match1 {
+			if !match2 {
+				t.Fatal("Didn't match either uniq code", backend)
+			}
+		}
+
+		cancel()
+	}
+}
+
 func TestSubscribeFailures(t *testing.T) {
 	// Ensure that when a pod fails a task it continues to consume future jobs
 	for _, backend := range backends {
