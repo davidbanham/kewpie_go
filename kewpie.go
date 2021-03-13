@@ -22,11 +22,12 @@ type Kewpie struct {
 type Task = types.Task
 type Tags = types.Tags
 
-type BufferedTask struct {
+type bufferedTask struct {
 	QueueName string
 	Task      *Task
 }
-type Buffer []BufferedTask
+
+type buffer []bufferedTask
 
 type Backend interface {
 	Healthy(ctx context.Context) error
@@ -103,17 +104,23 @@ func (this Kewpie) Healthy(ctx context.Context) error {
 	return this.backend.Healthy(ctx)
 }
 
-func (this Kewpie) Buffer(ctx context.Context, queueName string, payload *Task) context.Context {
-	buffer := Buffer{}
+func PrepareContext(ctx context.Context) context.Context {
+	buf := buffer{}
+	return context.WithValue(ctx, "kewpie_buffer", &buf)
+}
+
+func Buffer(ctx context.Context, queueName string, payload *Task) error {
 	unconv := ctx.Value("kewpie_buffer")
-	if unconv != nil {
-		buffer = unconv.(Buffer)
+	if unconv == nil {
+		return fmt.Errorf("No kewpie buffer on context")
 	}
-	buffer = append(buffer, BufferedTask{
+	buf := unconv.(*buffer)
+
+	*buf = append(*buf, bufferedTask{
 		QueueName: queueName,
 		Task:      payload,
 	})
-	return context.WithValue(ctx, "kewpie_buffer", buffer)
+	return nil
 }
 
 func (this Kewpie) Drain(ctx context.Context) error {
@@ -121,9 +128,9 @@ func (this Kewpie) Drain(ctx context.Context) error {
 	if unconv == nil {
 		return nil
 	}
-	buffer := unconv.(Buffer)
+	buf := unconv.(*buffer)
 	errors := []error{}
-	for _, bufferedTask := range buffer {
+	for _, bufferedTask := range *buf {
 		if err := this.Publish(ctx, bufferedTask.QueueName, bufferedTask.Task); err != nil {
 			errors = append(errors, err)
 		}
