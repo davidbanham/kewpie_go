@@ -12,11 +12,14 @@ import (
 	"github.com/davidbanham/kewpie_go/v3/backends/postgres"
 	"github.com/davidbanham/kewpie_go/v3/backends/sqs"
 	"github.com/davidbanham/kewpie_go/v3/types"
+	uuid "github.com/satori/go.uuid"
 )
 
 type Kewpie struct {
-	queues  []string
-	backend Backend
+	queues   []string
+	backend  Backend
+	id       string
+	bufferID string
 }
 
 type Task = types.Task
@@ -63,6 +66,8 @@ func (this Kewpie) Pop(ctx context.Context, queueName string, handler types.Hand
 
 func (this *Kewpie) Connect(backend string, queues []string, connection interface{}) error {
 	this.queues = queues
+	this.id = uuid.NewV4().String()
+	this.bufferID = "kewpie_buffer_" + this.id
 
 	switch backend {
 	case "memory":
@@ -104,13 +109,13 @@ func (this Kewpie) Healthy(ctx context.Context) error {
 	return this.backend.Healthy(ctx)
 }
 
-func PrepareContext(ctx context.Context) context.Context {
+func (this Kewpie) PrepareContext(ctx context.Context) context.Context {
 	buf := buffer{}
-	return context.WithValue(ctx, "kewpie_buffer", &buf)
+	return context.WithValue(ctx, this.bufferID, &buf)
 }
 
-func Buffer(ctx context.Context, queueName string, payload *Task) error {
-	unconv := ctx.Value("kewpie_buffer")
+func (this Kewpie) Buffer(ctx context.Context, queueName string, payload *Task) error {
+	unconv := ctx.Value(this.bufferID)
 	if unconv == nil {
 		return fmt.Errorf("No kewpie buffer on context")
 	}
@@ -124,7 +129,7 @@ func Buffer(ctx context.Context, queueName string, payload *Task) error {
 }
 
 func (this Kewpie) Drain(ctx context.Context) error {
-	unconv := ctx.Value("kewpie_buffer")
+	unconv := ctx.Value(this.bufferID)
 	if unconv == nil {
 		return nil
 	}

@@ -209,9 +209,9 @@ func TestBuffer(t *testing.T) {
 		go (func() {
 			assert.Equal(t, types.SubscriptionCancelled, kewpie.Subscribe(ctx, queueName, handler))
 		})()
-		ctx = PrepareContext(ctx)
-		assert.Nil(t, Buffer(ctx, queueName, &pubTask1))
-		assert.Nil(t, Buffer(ctx, queueName, &pubTask2))
+		ctx = kewpie.PrepareContext(ctx)
+		assert.Nil(t, kewpie.Buffer(ctx, queueName, &pubTask1))
+		assert.Nil(t, kewpie.Buffer(ctx, queueName, &pubTask2))
 		time.Sleep(2 * time.Second)
 		if fired > 0 {
 			t.Fatal("Should not have fired yet")
