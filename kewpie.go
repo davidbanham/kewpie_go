@@ -110,11 +110,17 @@ func (this Kewpie) Healthy(ctx context.Context) error {
 }
 
 func (this Kewpie) PrepareContext(ctx context.Context) context.Context {
+	if this.bufferID == "" {
+		return ctx
+	}
 	buf := buffer{}
 	return context.WithValue(ctx, this.bufferID, &buf)
 }
 
 func (this Kewpie) Buffer(ctx context.Context, queueName string, payload *Task) error {
+	if this.bufferID == "" {
+		return fmt.Errorf("Queue not initialised")
+	}
 	unconv := ctx.Value(this.bufferID)
 	if unconv == nil {
 		return fmt.Errorf("No kewpie buffer on context")
@@ -129,6 +135,9 @@ func (this Kewpie) Buffer(ctx context.Context, queueName string, payload *Task) 
 }
 
 func (this Kewpie) Drain(ctx context.Context) error {
+	if this.bufferID == "" {
+		return fmt.Errorf("Queue not initialised")
+	}
 	unconv := ctx.Value(this.bufferID)
 	if unconv == nil {
 		return nil
