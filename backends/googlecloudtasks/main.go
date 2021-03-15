@@ -15,9 +15,10 @@ import (
 )
 
 type CloudTasks struct {
-	client *cloudtasks.Client
-	paths  map[string]string
-	closed bool
+	client         *cloudtasks.Client
+	paths          map[string]string
+	closed         bool
+	DefaultURLBase string
 }
 
 func (this *CloudTasks) Init(queues []string) error {
@@ -74,6 +75,11 @@ func (this CloudTasks) Publish(ctx context.Context, queueName string, payload *t
 		return err
 	}
 
+	targetURL := payload.Tags["handler_url"]
+	if targetURL == "" {
+		targetURL = fmt.Sprintf("%s/%s", this.DefaultURLBase, queueName)
+	}
+
 	req := &taskspb.CreateTaskRequest{
 		Parent: this.paths[queueName],
 		Task: &taskspb.Task{
@@ -81,7 +87,7 @@ func (this CloudTasks) Publish(ctx context.Context, queueName string, payload *t
 			MessageType: &taskspb.Task_HttpRequest{
 				HttpRequest: &taskspb.HttpRequest{
 					HttpMethod: taskspb.HttpMethod_POST,
-					Url:        payload.Tags["handler_url"],
+					Url:        targetURL,
 				},
 			},
 		},
