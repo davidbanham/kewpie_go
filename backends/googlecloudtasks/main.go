@@ -33,11 +33,11 @@ func (this *CloudTasks) Init(queues []string) error {
 	this.client = client
 
 	required_env.Ensure(map[string]string{
-		"GOOGLE_CLOUD_PROJECT_ID":  "",
+		"GOOGLE_PROJECT_ID":        "",
 		"GOOGLE_CLOUD_LOCATION_ID": "",
 	})
 
-	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT_ID")
+	projectID := os.Getenv("GOOGLE_PROJECT_ID")
 	locationID := os.Getenv("GOOGLE_CLOUD_LOCATION_ID")
 
 	this.defaultURLBase = os.Getenv("DEFAULT_TASK_CALLBACK_URL_BASE")
