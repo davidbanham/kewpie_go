@@ -19,7 +19,7 @@ import (
 //var backends = []string{"memory", "postgres", "sqs"}
 var backends = []testBackend{testBackend{"memory", nil}, testBackend{"postgres", nil}}
 
-//var backends = []testBackend{testBackend{"google_pubsub", nil}}
+//var backends = []testBackend{testBackend{"google_cloud_tasks", nil}}
 
 type testBackend struct {
 	Identifier string
@@ -55,8 +55,12 @@ func init() {
 		}
 
 		if err := kewpie.Purge(context.Background(), queueName); err != nil {
-			log.Fatal(err)
+			if err != types.NotImplemented {
+				log.Fatal(err)
+			}
 		}
+
+		log.Println("Purged")
 	}
 }
 
@@ -68,6 +72,7 @@ func TestPGInit(t *testing.T) {
 func TestUnmarshal(t *testing.T) {
 	task := types.Task{
 		Body: `{"Sup": "woof"}`,
+		Tags: map[string]string{"handler_url": "http://example.com"},
 	}
 
 	woof := supDawg{}
@@ -89,7 +94,7 @@ func (h *testHandler) Handle(t types.Task) (bool, error) {
 	return h.handleFunc(t)
 }
 
-func TestSubscribe(t *testing.T) {
+func TestSubscribeSimple(t *testing.T) {
 	for _, backend := range backends {
 		kewpie := Kewpie{}
 
@@ -119,6 +124,7 @@ func TestSubscribe(t *testing.T) {
 			},
 		}
 		pubTask1 := types.Task{
+			Tags:         map[string]string{"handler_url": "http://example.com"},
 			NoExpBackoff: true,
 		}
 		err := pubTask1.Marshal(supDawg{
@@ -128,6 +134,7 @@ func TestSubscribe(t *testing.T) {
 			t.Fatal("Err in marshaling")
 		}
 		pubTask2 := types.Task{
+			Tags:         map[string]string{"handler_url": "http://example.com"},
 			NoExpBackoff: true,
 		}
 		err = pubTask2.Marshal(supDawg{
@@ -139,7 +146,8 @@ func TestSubscribe(t *testing.T) {
 
 		ctx, cancel := context.WithCancel(context.Background())
 		go (func() {
-			assert.Equal(t, types.SubscriptionCancelled, kewpie.Subscribe(ctx, queueName, handler))
+			log.Println("About to subscribe")
+			assert.Contains(t, []error{types.SubscriptionCancelled, types.NotImplemented}, kewpie.Subscribe(ctx, queueName, handler))
 		})()
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask1))
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask2))
@@ -187,6 +195,7 @@ func TestBuffer(t *testing.T) {
 			},
 		}
 		pubTask1 := types.Task{
+			Tags:         map[string]string{"handler_url": "http://example.com"},
 			NoExpBackoff: true,
 		}
 		err := pubTask1.Marshal(supDawg{
@@ -196,6 +205,7 @@ func TestBuffer(t *testing.T) {
 			t.Fatal("Err in marshaling")
 		}
 		pubTask2 := types.Task{
+			Tags:         map[string]string{"handler_url": "http://example.com"},
 			NoExpBackoff: true,
 		}
 		err = pubTask2.Marshal(supDawg{
@@ -207,7 +217,7 @@ func TestBuffer(t *testing.T) {
 
 		ctx, cancel := context.WithCancel(context.Background())
 		go (func() {
-			assert.Equal(t, types.SubscriptionCancelled, kewpie.Subscribe(ctx, queueName, handler))
+			assert.Contains(t, []error{types.SubscriptionCancelled, types.NotImplemented}, kewpie.Subscribe(ctx, queueName, handler))
 		})()
 		ctx = kewpie.PrepareContext(ctx)
 		assert.Nil(t, kewpie.Buffer(ctx, queueName, &pubTask1))
@@ -250,6 +260,7 @@ func TestSubscribeFailures(t *testing.T) {
 			},
 		}
 		pubTask1 := types.Task{
+			Tags:         map[string]string{"handler_url": "http://example.com"},
 			NoExpBackoff: true,
 		}
 		err := pubTask1.Marshal(supDawg{
@@ -261,7 +272,7 @@ func TestSubscribeFailures(t *testing.T) {
 
 		ctx, cancel := context.WithCancel(context.Background())
 		go (func() {
-			assert.Equal(t, types.SubscriptionCancelled, kewpie.Subscribe(ctx, queueName, handler))
+			assert.Contains(t, []error{types.SubscriptionCancelled, types.NotImplemented}, kewpie.Subscribe(ctx, queueName, handler))
 		})()
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask1))
 		time.Sleep(2 * time.Second)
@@ -309,6 +320,7 @@ func TestPop(t *testing.T) {
 			},
 		}
 		pubTask1 := types.Task{
+			Tags:         map[string]string{"handler_url": "http://example.com"},
 			NoExpBackoff: true,
 		}
 		err := pubTask1.Marshal(supDawg{
@@ -318,6 +330,7 @@ func TestPop(t *testing.T) {
 			t.Fatal("Err in marshaling")
 		}
 		pubTask2 := types.Task{
+			Tags:         map[string]string{"handler_url": "http://example.com"},
 			NoExpBackoff: true,
 		}
 		err = pubTask2.Marshal(supDawg{
@@ -390,21 +403,27 @@ func TestRequeueing(t *testing.T) {
 				return false, nil
 			},
 		}
-		pubTask := types.Task{}
+		pubTask := types.Task{
+			Tags: map[string]string{"handler_url": "http://example.com"},
+		}
 		err := pubTask.Marshal(supDawg{
 			Sup: uniq,
 		})
 		if err != nil {
 			t.Fatal("Err in marshaling")
 		}
-		pubTask2 := types.Task{}
+		pubTask2 := types.Task{
+			Tags: map[string]string{"handler_url": "http://example.com"},
+		}
 		err = pubTask2.Marshal(supDawg{
 			Sup: uniq2,
 		})
 		if err != nil {
 			t.Fatal("Err in marshaling")
 		}
-		pubTask3 := types.Task{}
+		pubTask3 := types.Task{
+			Tags: map[string]string{"handler_url": "http://example.com"},
+		}
 		err = pubTask3.Marshal(supDawg{
 			Sup: uniq3,
 		})
@@ -418,7 +437,7 @@ func TestRequeueing(t *testing.T) {
 
 		ctx, cancel := context.WithCancel(context.Background())
 		go (func() {
-			assert.Equal(t, types.SubscriptionCancelled, kewpie.Subscribe(ctx, queueName, handler))
+			assert.Contains(t, []error{types.SubscriptionCancelled, types.NotImplemented}, kewpie.Subscribe(ctx, queueName, handler))
 		})()
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask))
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask2))
@@ -449,12 +468,14 @@ func TestPurgeMatching(t *testing.T) {
 
 		pubTask1 := types.Task{
 			NoExpBackoff: true,
+			Tags:         map[string]string{"handler_url": "http://example.com"},
 		}
 		assert.Nil(t, pubTask1.Marshal(supDawg{
 			Sup: uniq1,
 		}))
 		pubTask2 := types.Task{
 			NoExpBackoff: true,
+			Tags:         map[string]string{"handler_url": "http://example.com"},
 		}
 		assert.Nil(t, pubTask2.Marshal(supDawg{
 			Sup: uniq2,
@@ -481,7 +502,7 @@ func TestPurgeMatching(t *testing.T) {
 
 		if purgeErr := kewpie.PurgeMatching(ctx, queueName, uniq1); purgeErr == nil {
 			go (func() {
-				assert.Equal(t, types.SubscriptionCancelled, kewpie.Subscribe(ctx, queueName, handler))
+				assert.Contains(t, []error{types.SubscriptionCancelled, types.NotImplemented}, kewpie.Subscribe(ctx, queueName, handler))
 			})()
 
 			time.Sleep(5 * time.Second)
@@ -508,7 +529,8 @@ func TestTags(t *testing.T) {
 
 		pubTask1 := types.Task{
 			Tags: types.Tags{
-				"name": "monty",
+				"name":        "monty",
+				"handler_url": "http://example.com",
 			},
 			NoExpBackoff: true,
 		}
@@ -534,7 +556,7 @@ func TestTags(t *testing.T) {
 		assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask1))
 
 		go (func() {
-			assert.Equal(t, types.SubscriptionCancelled, kewpie.Subscribe(ctx, queueName, handler))
+			assert.Contains(t, []error{types.SubscriptionCancelled, types.NotImplemented}, kewpie.Subscribe(ctx, queueName, handler))
 		})()
 		time.Sleep(1 * time.Second)
 		assert.True(t, hit)
@@ -565,7 +587,7 @@ func TestCancel(t *testing.T) {
 
 		hit := false
 		go (func() {
-			assert.Equal(t, types.SubscriptionCancelled, kewpie.Subscribe(ctx, queueName, handler))
+			assert.Contains(t, []error{types.SubscriptionCancelled, types.NotImplemented}, kewpie.Subscribe(ctx, queueName, handler))
 			hit = true
 		})()
 
