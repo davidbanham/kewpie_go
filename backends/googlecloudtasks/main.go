@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
 	"google.golang.org/api/iterator"
@@ -19,6 +20,10 @@ type CloudTasks struct {
 	paths          map[string]string
 	closed         bool
 	defaultURLBase string
+}
+
+func sanitise(queueName string) string {
+	return strings.ReplaceAll(queueName, "_", "-")
 }
 
 func (this *CloudTasks) Init(queues []string) error {
@@ -43,8 +48,8 @@ func (this *CloudTasks) Init(queues []string) error {
 	this.defaultURLBase = os.Getenv("DEFAULT_TASK_CALLBACK_URL_BASE")
 
 	for _, queueName := range queues {
-		name := fmt.Sprintf("projects/%s/locations/%s/queues/%s", projectID, locationID, queueName)
-		this.paths[queueName] = name
+		name := fmt.Sprintf("projects/%s/locations/%s/queues/%s", projectID, locationID, sanitise(queueName))
+		this.paths[sanitise(queueName)] = name
 		req := taskspb.UpdateQueueRequest{
 			Queue: &taskspb.Queue{
 				Name: name,
@@ -79,11 +84,11 @@ func (this CloudTasks) Publish(ctx context.Context, queueName string, payload *t
 
 	targetURL := payload.Tags["handler_url"]
 	if targetURL == "" && this.defaultURLBase != "" {
-		targetURL = fmt.Sprintf("%s/%s", this.defaultURLBase, queueName)
+		targetURL = fmt.Sprintf("%s/%s", this.defaultURLBase, sanitise(queueName))
 	}
 
 	req := &taskspb.CreateTaskRequest{
-		Parent: this.paths[queueName],
+		Parent: this.paths[sanitise(queueName)],
 		Task: &taskspb.Task{
 			ScheduleTime: ts,
 			MessageType: &taskspb.Task_HttpRequest{
@@ -110,7 +115,7 @@ func (this CloudTasks) Publish(ctx context.Context, queueName string, payload *t
 
 func (this CloudTasks) Purge(ctx context.Context, queueName string) error {
 	req := &taskspb.ListTasksRequest{
-		Parent: this.paths[queueName],
+		Parent: this.paths[sanitise(queueName)],
 	}
 	it := this.client.ListTasks(ctx, req)
 	for {
