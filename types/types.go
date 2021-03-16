@@ -46,7 +46,7 @@ func (t *Task) Marshal(source interface{}) (err error) {
 	return
 }
 
-func (t *Task) FromHTTP(r http.Request) (string, error) {
+func (t *Task) FromHTTP(r *http.Request) (string, error) {
 	queueName := r.Header.Get("X-CloudTasks-QueueName")
 
 	body, err := ioutil.ReadAll(r.Body)
