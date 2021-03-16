@@ -4,6 +4,9 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"io/ioutil"
+	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -41,6 +44,24 @@ func (t *Task) Marshal(source interface{}) (err error) {
 	byteArr, err := json.Marshal(source)
 	t.Body = string(byteArr)
 	return
+}
+
+func (t *Task) FromHTTP(r http.Request) (string, error) {
+	queueName := r.Header.Get("X-CloudTasks-QueueName")
+
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return queueName, err
+	}
+
+	if err := json.Unmarshal(body, &t); err != nil {
+		return queueName, err
+	}
+
+	parsed, _ := strconv.Atoi(r.Header.Get("X-CloudTasks-TaskRetryCount"))
+	t.Attempts = parsed
+
+	return queueName, nil
 }
 
 type Handler interface {
