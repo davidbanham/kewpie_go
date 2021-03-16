@@ -18,10 +18,9 @@ import (
 )
 
 type CloudTasks struct {
-	client         *cloudtasks.Client
-	paths          map[string]string
-	closed         bool
-	defaultURLBase string
+	client *cloudtasks.Client
+	paths  map[string]string
+	closed bool
 }
 
 func sanitise(queueName string) string {
@@ -46,8 +45,6 @@ func (this *CloudTasks) Init(queues []string) error {
 
 	projectID := os.Getenv("GOOGLE_PROJECT_ID")
 	locationID := os.Getenv("GOOGLE_CLOUD_LOCATION_ID")
-
-	this.defaultURLBase = os.Getenv("DEFAULT_TASK_CALLBACK_URL_BASE")
 
 	for _, queueName := range queues {
 		name := fmt.Sprintf("projects/%s/locations/%s/queues/%s", projectID, locationID, sanitise(queueName))
@@ -88,9 +85,6 @@ func (this CloudTasks) Publish(ctx context.Context, queueName string, payload *t
 	}
 
 	targetURL := payload.Tags["handler_url"]
-	if targetURL == "" && this.defaultURLBase != "" {
-		targetURL = fmt.Sprintf("%s/%s", this.defaultURLBase, sanitise(queueName))
-	}
 
 	req := &taskspb.CreateTaskRequest{
 		Parent: this.paths[sanitise(queueName)],
