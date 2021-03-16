@@ -17,10 +17,11 @@ import (
 )
 
 type Kewpie struct {
-	queues   []string
-	backend  Backend
-	id       string
-	bufferID string
+	queues            []string
+	backend           Backend
+	id                string
+	bufferID          string
+	publishMiddleware []func(*Task) error
 }
 
 type Task = types.Task
@@ -53,6 +54,12 @@ func (this Kewpie) Publish(ctx context.Context, queueName string, payload *types
 	}
 
 	payload.Delay = payload.RunAt.Sub(time.Now())
+
+	for _, f := range this.publishMiddleware {
+		if err := f(payload); err != nil {
+			return err
+		}
+	}
 
 	return this.backend.Publish(ctx, queueName, payload)
 }
@@ -160,4 +167,8 @@ func (this Kewpie) Drain(ctx context.Context) error {
 		return fmt.Errorf("%w; One or more tasks failed to publish", outerErr)
 	}
 	return nil
+}
+
+func (this *Kewpie) AddPublishMiddleware(f func(*Task) error) {
+	this.publishMiddleware = append(this.publishMiddleware, f)
 }
