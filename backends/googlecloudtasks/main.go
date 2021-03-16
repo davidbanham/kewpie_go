@@ -2,6 +2,7 @@ package googlecloudtasks
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -100,8 +101,12 @@ func (this CloudTasks) Publish(ctx context.Context, queueName string, payload *t
 		},
 	}
 
-	// Add a payload message if one is present.
-	req.Task.GetHttpRequest().Body = []byte(payload.Body)
+	taskJSON, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	req.Task.GetHttpRequest().Body = taskJSON
 
 	createdTask, err := this.client.CreateTask(ctx, req)
 	if err != nil {
