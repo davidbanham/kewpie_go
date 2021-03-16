@@ -58,8 +58,9 @@ func (this *CloudTasks) Init(queues []string) error {
 					Name: name,
 				},
 			}
-			_, err := this.client.UpdateQueue(ctx, &req)
-			log.Fatal(err)
+			if _, err := this.client.UpdateQueue(ctx, &req); err != nil {
+				log.Fatal(err)
+			}
 		})()
 
 		this.paths[sanitise(queueName)] = name
