@@ -46,6 +46,9 @@ type Backend interface {
 }
 
 func (this Kewpie) Publish(ctx context.Context, queueName string, payload *types.Task) error {
+	if payload.Tags == nil {
+		payload.Tags = Tags{}
+	}
 	// Set RunAt based on the info from Delay
 	if payload.Delay != 0 {
 		payload.RunAt = time.Now().Add(payload.Delay)
