@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -51,15 +52,15 @@ func (this *CloudTasks) Init(queues []string) error {
 	for _, queueName := range queues {
 		name := fmt.Sprintf("projects/%s/locations/%s/queues/%s", projectID, locationID, sanitise(queueName))
 
-		req := taskspb.UpdateQueueRequest{
-			Queue: &taskspb.Queue{
-				Name: name,
-			},
-		}
-		_, err := this.client.UpdateQueue(ctx, &req)
-		if err != nil {
-			return err
-		}
+		go (func() {
+			req := taskspb.UpdateQueueRequest{
+				Queue: &taskspb.Queue{
+					Name: name,
+				},
+			}
+			_, err := this.client.UpdateQueue(ctx, &req)
+			log.Fatal(err)
+		})()
 
 		this.paths[sanitise(queueName)] = name
 	}
