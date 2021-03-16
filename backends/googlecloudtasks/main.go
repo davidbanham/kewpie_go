@@ -50,16 +50,24 @@ func (this *CloudTasks) Init(queues []string) error {
 
 	for _, queueName := range queues {
 		name := fmt.Sprintf("projects/%s/locations/%s/queues/%s", projectID, locationID, sanitise(queueName))
-		this.paths[sanitise(queueName)] = name
-		req := taskspb.UpdateQueueRequest{
-			Queue: &taskspb.Queue{
-				Name: name,
-			},
+
+		getReq := taskspb.GetQueueRequest{
+			Name: name,
 		}
-		_, err := this.client.UpdateQueue(ctx, &req)
+		_, err := this.client.GetQueue(ctx, &getReq)
 		if err != nil {
-			return err
+			req := taskspb.UpdateQueueRequest{
+				Queue: &taskspb.Queue{
+					Name: name,
+				},
+			}
+			_, err := this.client.UpdateQueue(ctx, &req)
+			if err != nil {
+				return err
+			}
 		}
+
+		this.paths[sanitise(queueName)] = name
 	}
 
 	return nil
