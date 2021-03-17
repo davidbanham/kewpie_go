@@ -47,22 +47,24 @@ func (t *Task) Marshal(source interface{}) (err error) {
 	return
 }
 
-func (t *Task) FromHTTP(r *http.Request) (string, error) {
-	queueName := r.Header.Get("X-CloudTasks-QueueName")
-
+func (t *Task) FromHTTP(r *http.Request) error {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return queueName, err
+		return err
 	}
 
 	if err := json.Unmarshal(body, &t); err != nil {
-		return queueName, err
+		return err
 	}
 
 	parsed, _ := strconv.Atoi(r.Header.Get("X-CloudTasks-TaskRetryCount"))
 	t.Attempts = parsed
 
-	return queueName, nil
+	if t.QueueName == "" {
+		t.QueueName = r.Header.Get("X-CloudTasks-QueueName")
+	}
+
+	return nil
 }
 
 type Handler interface {
