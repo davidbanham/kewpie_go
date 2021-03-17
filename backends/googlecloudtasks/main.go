@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
 	"google.golang.org/api/iterator"
@@ -83,7 +84,15 @@ func (this CloudTasks) Publish(ctx context.Context, queueName string, payload *t
 		return types.ConnectionClosed
 	}
 
-	ts, err := ptypes.TimestampProto(payload.RunAt)
+	runAt := payload.RunAt
+
+	horizon := time.Now().Add(25 * 24 * time.Hour) // Cloud Tasks max is 30 days, use 25 to give plenty of leeway for leap seconds, etc.
+
+	if runAt.After(horizon) {
+		runAt = horizon
+	}
+
+	ts, err := ptypes.TimestampProto(runAt)
 	if err != nil {
 		return err
 	}
