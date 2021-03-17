@@ -1,6 +1,7 @@
 package types
 
 import (
+	"crypto/sha256"
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
@@ -11,7 +12,6 @@ import (
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go/v4"
-	uuid "github.com/satori/go.uuid"
 )
 
 type Task struct {
@@ -23,6 +23,7 @@ type Task struct {
 	Attempts     int           `json:"attempts"`
 	Tags         Tags          `json:"tags"`
 	QueueName    string        `json:"queue_name"`
+	Token        string        `json:"token"`
 }
 
 type Tags map[string]string
@@ -71,12 +72,14 @@ func (t *Task) FromHTTP(r *http.Request) error {
 	return nil
 }
 
-func (t *Task) Sign(secret string) error {
-	uniq := uuid.NewV4().String()
-	t.Tags["kewpie_auth_claim"] = uniq
+func (t Task) Checksum() string {
+	sum := sha256.Sum256([]byte(t.Body))
+	return fmt.Sprintf("%x", sum)
+}
 
+func (t *Task) Sign(secret string) error {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"auth": uniq,
+		"checksum": t.Checksum(),
 	})
 
 	tokenString, err := token.SignedString([]byte(secret))
@@ -84,12 +87,12 @@ func (t *Task) Sign(secret string) error {
 		return err
 	}
 
-	t.Tags["kewpie_token"] = tokenString
+	t.Token = tokenString
 	return nil
 }
 
-func (task *Task) VerifySignature(secret string) error {
-	token, err := jwt.Parse(task.Tags["token"], func(token *jwt.Token) (interface{}, error) {
+func (task Task) VerifySignature(secret string) error {
+	token, err := jwt.Parse(task.Token, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return "", fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
@@ -101,11 +104,11 @@ func (task *Task) VerifySignature(secret string) error {
 	}
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		if claims["auth"] != task.Tags["kewpie_auth_claim"] {
-			return fmt.Errorf("Invalid token")
+		if claims["checksum"] != task.Checksum() {
+			return fmt.Errorf("Checksum does not match. Task may have been tampered with.")
 		}
 	} else {
-		return fmt.Errorf("Error decoding token claims")
+		return fmt.Errorf("Invalid token")
 	}
 
 	return nil
