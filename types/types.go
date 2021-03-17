@@ -18,6 +18,7 @@ type Task struct {
 	NoExpBackoff bool          `json:"no_exp_backoff"`
 	Attempts     int           `json:"attempts"`
 	Tags         Tags          `json:"tags"`
+	QueueName    string        `json:"queue_name"`
 }
 
 type Tags map[string]string

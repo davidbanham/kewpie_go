@@ -55,6 +55,10 @@ func (this Kewpie) Publish(ctx context.Context, queueName string, payload *types
 		payload.RunAt = time.Now()
 	}
 
+	if payload.QueueName == "" {
+		payload.QueueName = queueName
+	}
+
 	payload.Delay = payload.RunAt.Sub(time.Now())
 
 	for _, f := range this.publishMiddleware {
