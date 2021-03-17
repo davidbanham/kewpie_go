@@ -4,10 +4,14 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"time"
+
+	jwt "github.com/dgrijalva/jwt-go/v4"
+	uuid "github.com/satori/go.uuid"
 )
 
 type Task struct {
@@ -62,6 +66,46 @@ func (t *Task) FromHTTP(r *http.Request) error {
 
 	if t.QueueName == "" {
 		t.QueueName = r.Header.Get("X-CloudTasks-QueueName")
+	}
+
+	return nil
+}
+
+func (t *Task) Sign(secret string) error {
+	uniq := uuid.NewV4().String()
+	t.Tags["kewpie_auth_claim"] = uniq
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"auth": uniq,
+	})
+
+	tokenString, err := token.SignedString([]byte(secret))
+	if err != nil {
+		return err
+	}
+
+	t.Tags["kewpie_token"] = tokenString
+	return nil
+}
+
+func (task *Task) VerifySignature(secret string) error {
+	token, err := jwt.Parse(task.Tags["token"], func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return "", fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+
+		return []byte(secret), nil
+	})
+	if err != nil {
+		return err
+	}
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		if claims["auth"] != task.Tags["kewpie_auth_claim"] {
+			return fmt.Errorf("Invalid token")
+		}
+	} else {
+		return fmt.Errorf("Error decoding token claims")
 	}
 
 	return nil
