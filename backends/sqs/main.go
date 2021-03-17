@@ -226,6 +226,10 @@ func (this Sqs) Pop(ctx context.Context, queueName string, handler types.Handler
 	return nil
 }
 
+func (this Sqs) Suck(ctx context.Context, queueName string, handler types.Handler) (err error) {
+	return types.NotImplemented
+}
+
 func (this Sqs) Subscribe(ctx context.Context, queueName string, handler types.Handler) (err error) {
 	for {
 		if this.closed {

@@ -56,6 +56,14 @@ func (this Postgres) Publish(ctx context.Context, queueName string, payload *typ
 }
 
 func (this *Postgres) Pop(ctx context.Context, queueName string, handler types.Handler) error {
+	return this.popOrSlurp(ctx, queueName, handler, false)
+}
+
+func (this *Postgres) slurp(ctx context.Context, queueName string, handler types.Handler) error {
+	return this.popOrSlurp(ctx, queueName, handler, true)
+}
+
+func (this *Postgres) popOrSlurp(ctx context.Context, queueName string, handler types.Handler, slurp bool) error {
 	cancelled := false
 
 	go func() {
@@ -91,15 +99,23 @@ func (this *Postgres) Pop(ctx context.Context, queueName string, handler types.H
 			return err
 		}
 
-		row := tx.QueryRowContext(ctx, `DELETE FROM `+tableName+`
-WHERE id = (
-  SELECT id FROM `+tableName+`
-	WHERE run_at < NOW()
-  ORDER BY created_at, attempts ASC
-  FOR UPDATE SKIP LOCKED 
-  LIMIT 1
-)
-RETURNING id, body, delay, run_at, no_exp_backoff, attempts, tags`)
+		query := `DELETE FROM ` + tableName + `
+			WHERE id = (
+				SELECT id FROM ` + tableName
+
+		if slurp {
+			query += `
+				WHERE run_at < NOW()`
+		}
+
+		query += `
+			ORDER BY created_at, attempts ASC
+			FOR UPDATE SKIP LOCKED
+			LIMIT 1
+		)
+		RETURNING id, body, delay, run_at, no_exp_backoff, attempts, tags`
+
+		row := tx.QueryRowContext(ctx, query)
 
 		task := types.Task{}
 		if err := row.Scan(&task.ID, &task.Body, &task.Delay, &task.RunAt, &task.NoExpBackoff, &task.Attempts, &task.Tags); err != nil {
@@ -156,6 +172,18 @@ func (this Postgres) Subscribe(ctx context.Context, queueName string, handler ty
 		}
 
 		if err := this.Pop(ctx, queueName, handler); err != nil {
+			return err
+		}
+	}
+}
+
+func (this Postgres) Suck(ctx context.Context, queueName string, handler types.Handler) error {
+	for {
+		if this.closed {
+			return types.ConnectionClosed
+		}
+
+		if err := this.slurp(ctx, queueName, handler); err != nil {
 			return err
 		}
 	}

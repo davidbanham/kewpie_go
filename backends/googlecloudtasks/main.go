@@ -70,6 +70,10 @@ func (this CloudTasks) Pop(ctx context.Context, queueName string, handler types.
 	return types.NotImplemented
 }
 
+func (this CloudTasks) Suck(ctx context.Context, queueName string, handler types.Handler) error {
+	return types.NotImplemented
+}
+
 func (this CloudTasks) Subscribe(ctx context.Context, queueName string, handler types.Handler) error {
 	return types.NotImplemented
 }

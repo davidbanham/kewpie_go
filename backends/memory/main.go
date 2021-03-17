@@ -96,6 +96,10 @@ func (this *MemoryStore) Pop(ctx context.Context, queueName string, handler type
 	return innerErr
 }
 
+func (this *MemoryStore) Suck(ctx context.Context, queueName string, handler types.Handler) error {
+	return types.NotImplemented
+}
+
 func (this *MemoryStore) Subscribe(ctx context.Context, queueName string, handler types.Handler) error {
 	for {
 		if this.closed {

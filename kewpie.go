@@ -38,6 +38,7 @@ type Backend interface {
 	Healthy(ctx context.Context) error
 	Publish(ctx context.Context, queueName string, payload *types.Task) error
 	Subscribe(ctx context.Context, queueName string, handler types.Handler) error
+	Suck(ctx context.Context, queueName string, handler types.Handler) error
 	Pop(ctx context.Context, queueName string, handler types.Handler) error
 	Init(queues []string) error
 	Disconnect() error
@@ -73,6 +74,10 @@ func (this Kewpie) Publish(ctx context.Context, queueName string, payload *types
 
 func (this Kewpie) Subscribe(ctx context.Context, queueName string, handler types.Handler) error {
 	return this.backend.Subscribe(ctx, queueName, handler)
+}
+
+func (this Kewpie) Suck(ctx context.Context, queueName string, handler types.Handler) error {
+	return this.backend.Suck(ctx, queueName, handler)
 }
 
 func (this Kewpie) Pop(ctx context.Context, queueName string, handler types.Handler) error {
