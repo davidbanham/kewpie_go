@@ -103,7 +103,7 @@ func (this *Postgres) popOrSlurp(ctx context.Context, queueName string, handler 
 			WHERE id = (
 				SELECT id FROM ` + tableName
 
-		if slurp {
+		if !slurp {
 			query += `
 				WHERE run_at < NOW()`
 		}
