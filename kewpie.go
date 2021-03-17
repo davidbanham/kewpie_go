@@ -25,6 +25,7 @@ type Kewpie struct {
 
 type Task = types.Task
 type Tags = types.Tags
+type Handler = types.Handler
 
 type bufferedTask struct {
 	QueueName string
