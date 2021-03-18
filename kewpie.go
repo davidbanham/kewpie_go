@@ -20,7 +20,7 @@ type Kewpie struct {
 	backend           Backend
 	id                string
 	bufferID          string
-	publishMiddleware []func(*Task, string) error
+	publishMiddleware []func(context.Context, *Task, string) error
 }
 
 type Task = types.Task
@@ -64,7 +64,7 @@ func (this Kewpie) Publish(ctx context.Context, queueName string, payload *types
 	payload.Delay = payload.RunAt.Sub(time.Now())
 
 	for _, f := range this.publishMiddleware {
-		if err := f(payload, queueName); err != nil {
+		if err := f(ctx, payload, queueName); err != nil {
 			return err
 		}
 	}
@@ -179,6 +179,6 @@ func (this Kewpie) Drain(ctx context.Context) error {
 	return nil
 }
 
-func (this *Kewpie) AddPublishMiddleware(f func(*Task, string) error) {
+func (this *Kewpie) AddPublishMiddleware(f func(context.Context, *Task, string) error) {
 	this.publishMiddleware = append(this.publishMiddleware, f)
 }
