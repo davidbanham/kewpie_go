@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,9 +20,10 @@ import (
 )
 
 type CloudTasks struct {
-	client *cloudtasks.Client
-	paths  map[string]string
-	closed bool
+	client             *cloudtasks.Client
+	paths              map[string]string
+	closed             bool
+	publishConcurrency int
 }
 
 func sanitise(queueName string) string {
@@ -40,12 +42,20 @@ func (this *CloudTasks) Init(queues []string) error {
 	this.client = client
 
 	required_env.Ensure(map[string]string{
-		"GOOGLE_PROJECT_ID":        "",
-		"GOOGLE_CLOUD_LOCATION_ID": "",
+		"GOOGLE_PROJECT_ID":                      "",
+		"GOOGLE_CLOUD_LOCATION_ID":               "",
+		"GOOGLE_CLOUD_TASKS_PUBLISH_CONCURRENCY": "10",
 	})
 
 	projectID := os.Getenv("GOOGLE_PROJECT_ID")
 	locationID := os.Getenv("GOOGLE_CLOUD_LOCATION_ID")
+
+	publishConcurrency, err := strconv.Atoi(os.Getenv("GOOGLE_CLOUD_LOCATION_ID"))
+	if err != nil {
+		log.Fatal("Invalid concurrency integer provided")
+	}
+
+	this.publishConcurrency = publishConcurrency
 
 	for _, queueName := range queues {
 		name := fmt.Sprintf("projects/%s/locations/%s/queues/%s", projectID, locationID, sanitise(queueName))
@@ -174,5 +184,5 @@ func (this CloudTasks) Healthy(ctx context.Context) error {
 }
 
 func (this CloudTasks) MaxConcurrentDrainWorkers() int {
-	return 10
+	return this.publishConcurrency
 }
