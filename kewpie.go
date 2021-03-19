@@ -176,6 +176,10 @@ func (this Kewpie) Drain(ctx context.Context) error {
 
 	workerLimit := this.backend.MaxConcurrentDrainWorkers()
 
+	if len(*buf) < workerLimit {
+		workerLimit = len(*buf)
+	}
+
 	for id := 1; id <= workerLimit; id++ {
 		go drainWorker(ctx, id, this, jobs, doneChan, errorChan)
 	}
