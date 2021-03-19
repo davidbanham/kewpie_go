@@ -611,7 +611,7 @@ func TestPublishMiddleware(t *testing.T) {
 
 	middlewareFired := false
 
-	kewpie.AddPublishMiddleware(func(task *Task, passedQueueName string) error {
+	kewpie.AddPublishMiddleware(func(ctx context.Context, task *Task, passedQueueName string) error {
 		assert.Equal(t, passedQueueName, queueName)
 		task.Tags["middleware"] = uniq2
 		middlewareFired = true
