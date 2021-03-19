@@ -348,3 +348,7 @@ func (this Sqs) Healthy(ctx context.Context) error {
 	_, err := this.svc.ListQueues(&params)
 	return err
 }
+
+func (this Sqs) MaxConcurrentDrainWorkers() int {
+	return 5
+}

@@ -172,3 +172,7 @@ func (this CloudTasks) Healthy(ctx context.Context) error {
 	// FIXME implement this
 	return nil
 }
+
+func (this CloudTasks) MaxConcurrentDrainWorkers() int {
+	return 10
+}

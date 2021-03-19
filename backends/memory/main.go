@@ -147,3 +147,7 @@ func (this *MemoryStore) PurgeMatching(ctx context.Context, queueName, substr st
 func (this MemoryStore) Healthy(ctx context.Context) error {
 	return nil
 }
+
+func (this MemoryStore) MaxConcurrentDrainWorkers() int {
+	return 10
+}

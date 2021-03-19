@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/davidbanham/kewpie_go/v3/backends/googlecloudtasks"
@@ -44,6 +45,7 @@ type Backend interface {
 	Disconnect() error
 	Purge(ctx context.Context, queueName string) error
 	PurgeMatching(ctx context.Context, queueName, substr string) error
+	MaxConcurrentDrainWorkers() int
 }
 
 func (this Kewpie) Publish(ctx context.Context, queueName string, payload *types.Task) error {
@@ -163,12 +165,43 @@ func (this Kewpie) Drain(ctx context.Context) error {
 		return nil
 	}
 	buf := unconv.(*buffer)
+
 	errors := []error{}
-	for _, bufferedTask := range *buf {
-		if err := this.Publish(ctx, bufferedTask.QueueName, bufferedTask.Task); err != nil {
-			errors = append(errors, err)
-		}
+
+	errorChan := make(chan error)
+	doneChan := make(chan bool)
+	jobs := make(chan bufferedTask)
+
+	wg := sync.WaitGroup{}
+
+	workerLimit := this.backend.MaxConcurrentDrainWorkers()
+
+	for id := 1; id <= workerLimit; id++ {
+		go drainWorker(ctx, id, this, jobs, doneChan, errorChan)
 	}
+
+	go func() {
+		for err := range errorChan {
+			errors = append(errors, err)
+			wg.Done()
+		}
+	}()
+
+	go func() {
+		for range doneChan {
+			wg.Done()
+		}
+	}()
+
+	for _, bufferedTask := range *buf {
+		wg.Add(1)
+		jobs <- bufferedTask
+	}
+	wg.Wait()
+	close(jobs)
+	close(errorChan)
+	close(doneChan)
+
 	if len(errors) > 0 {
 		var outerErr error
 		for _, err := range errors {

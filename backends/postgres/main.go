@@ -281,3 +281,7 @@ func nameToTable(name string) string {
 	name = strings.ToLower(name)               // lower case
 	return "kewpie_" + name
 }
+
+func (this Postgres) MaxConcurrentDrainWorkers() int {
+	return 1
+}
