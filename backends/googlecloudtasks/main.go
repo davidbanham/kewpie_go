@@ -50,9 +50,9 @@ func (this *CloudTasks) Init(queues []string) error {
 	projectID := os.Getenv("GOOGLE_PROJECT_ID")
 	locationID := os.Getenv("GOOGLE_CLOUD_LOCATION_ID")
 
-	publishConcurrency, err := strconv.Atoi(os.Getenv("GOOGLE_CLOUD_LOCATION_ID"))
+	publishConcurrency, err := strconv.Atoi(os.Getenv("GOOGLE_CLOUD_TASKS_PUBLISH_CONCURRENCY"))
 	if err != nil {
-		log.Fatal("Invalid concurrency integer provided")
+		log.Fatal("Invalid concurrency integer provided", err)
 	}
 
 	this.publishConcurrency = publishConcurrency
