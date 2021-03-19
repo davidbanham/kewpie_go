@@ -183,7 +183,6 @@ func (this Kewpie) Drain(ctx context.Context) error {
 	go func() {
 		for err := range errorChan {
 			errors = append(errors, err)
-			wg.Done()
 		}
 	}()
 
