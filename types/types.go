@@ -41,6 +41,20 @@ func (tags *Tags) Scan(value interface{}) error {
 	return json.Unmarshal(b, &tags)
 }
 
+func (tags Tags) Get(key string) string {
+	if tags == nil {
+		return ""
+	}
+	return tags[key]
+}
+
+func (tags *Tags) Set(key, value string) {
+	if tags == nil {
+		*tags = map[string]string{}
+	}
+	(*tags)[key] = value
+}
+
 func (t Task) Unmarshal(res interface{}) (err error) {
 	err = json.Unmarshal([]byte(t.Body), res)
 	return
