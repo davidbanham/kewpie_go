@@ -49,8 +49,8 @@ func (tags Tags) Get(key string) string {
 }
 
 func (tags *Tags) Set(key, value string) {
-	if tags == nil {
-		*tags = map[string]string{}
+	if *tags == nil {
+		(*tags) = map[string]string{}
 	}
 	(*tags)[key] = value
 }

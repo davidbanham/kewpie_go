@@ -3,11 +3,11 @@ package types
 import "testing"
 
 func TestTagsSet(t *testing.T) {
-	tags := Tags{}
+	task := Task{}
 	// Should not panic about a nil map
-	tags.Set("foo", "bar")
+	task.Tags.Set("foo", "bar")
 	// Should return the value
-	if tags.Get("foo") != "bar" {
+	if task.Tags.Get("foo") != "bar" {
 		t.FailNow()
 	}
 }
