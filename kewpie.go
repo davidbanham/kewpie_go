@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"net/http"
 	"sync"
 	"time"
 
@@ -76,6 +77,64 @@ func (this Kewpie) Publish(ctx context.Context, queueName string, payload *types
 
 func (this Kewpie) Subscribe(ctx context.Context, queueName string, handler types.Handler) error {
 	return this.backend.Subscribe(ctx, queueName, handler)
+}
+
+func (this Kewpie) SubscribeHTTP(secret string, handler types.Handler, errorHandler func(context.Context, types.HTTPError)) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		task := types.Task{}
+
+		if err := task.FromHTTP(r); err != nil {
+			errorHandler(r.Context(), types.HTTPError{
+				Status: http.StatusBadRequest,
+				Error:  fmt.Errorf("Error parsing task: %w", err),
+			})
+			return
+		}
+
+		if task.RunAt.After(time.Now().Add(30 * time.Second)) {
+			// We use an internal context here since we don't want the republish to fail if the external is cancelled
+			ctx := context.Background()
+			if err := this.Publish(ctx, task.QueueName, &task); err != nil {
+				errorHandler(r.Context(), types.HTTPError{
+					Status: http.StatusInternalServerError,
+					Error:  fmt.Errorf("Error republishing future task: %w", err),
+				})
+				return
+			}
+
+			w.WriteHeader(http.StatusCreated)
+			w.Write([]byte("rescheduled"))
+			return
+		}
+
+		if err := task.VerifySignature(secret); err != nil {
+			errorHandler(r.Context(), types.HTTPError{
+				Status: http.StatusBadRequest,
+				Error:  fmt.Errorf("Invalid token: %w", err),
+			})
+			return
+		}
+
+		requeue, handlerErr := handler.Handle(task)
+		if handlerErr != nil {
+			if !requeue {
+				w.WriteHeader(http.StatusAccepted)
+				w.Write([]byte("task failed but should not be retried"))
+				return
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("error handling task"))
+				return
+			}
+			errorHandler(r.Context(), types.HTTPError{
+				Status: http.StatusInternalServerError,
+				Error:  handlerErr,
+			})
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok"))
+	}
 }
 
 func (this Kewpie) Suck(ctx context.Context, queueName string, handler types.Handler) error {

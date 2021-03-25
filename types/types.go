@@ -132,6 +132,11 @@ type Handler interface {
 	Handle(Task) (bool, error)
 }
 
+type HTTPError struct {
+	Status int
+	Error  error
+}
+
 var QueueNotFound = errors.New("I don't know any queue by that name")
 var ConnectionClosed = errors.New("The connection to the backend is closed")
 var SubscriptionCancelled = errors.New("This subscription has been cancelled")
