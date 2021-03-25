@@ -28,6 +28,7 @@ type Kewpie struct {
 type Task = types.Task
 type Tags = types.Tags
 type Handler = types.Handler
+type HTTPError = types.HTTPError
 
 type bufferedTask struct {
 	QueueName string
