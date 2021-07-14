@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go/v4"
@@ -73,6 +74,9 @@ func (t *Task) FromHTTP(r *http.Request) error {
 	}
 
 	if err := json.Unmarshal(body, &t); err != nil {
+		if strings.Contains(err.Error(), "unexpected end of JSON input") {
+			return fmt.Errorf("invalid JSON body passed to FromHTTP - %s - %w", err, body)
+		}
 		return err
 	}
 
