@@ -115,6 +115,9 @@ func (this CloudTasks) Publish(ctx context.Context, queueName string, payload *t
 			ScheduleTime: ts,
 			MessageType: &taskspb.Task_HttpRequest{
 				HttpRequest: &taskspb.HttpRequest{
+					Headers: map[string]string{
+						"Content-Type": "application/json",
+					},
 					HttpMethod: taskspb.HttpMethod_POST,
 					Url:        targetURL,
 				},
