@@ -6,10 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go/v4"
@@ -68,15 +66,9 @@ func (t *Task) Marshal(source interface{}) (err error) {
 }
 
 func (t *Task) FromHTTP(r *http.Request) error {
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		return err
-	}
+	decoder := json.NewDecoder(r.Body)
 
-	if err := json.Unmarshal(body, &t); err != nil {
-		if strings.Contains(err.Error(), "unexpected end of JSON input") {
-			return fmt.Errorf("invalid JSON body passed to FromHTTP - %s - %s - %s - %w", string(body), r.Form, r.Header, err)
-		}
+	if err := decoder.Decode(&t); err != nil {
 		return err
 	}
 
