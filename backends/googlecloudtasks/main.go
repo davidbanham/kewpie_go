@@ -61,13 +61,18 @@ func (this *CloudTasks) Init(queues []string) error {
 		name := fmt.Sprintf("projects/%s/locations/%s/queues/%s", projectID, locationID, sanitise(queueName))
 
 		go (func() {
-			req := taskspb.UpdateQueueRequest{
-				Queue: &taskspb.Queue{
-					Name: name,
-				},
+			getReq := taskspb.GetQueueRequest{
+				Name: name,
 			}
-			if _, err := this.client.UpdateQueue(ctx, &req); err != nil {
-				log.Fatal(err)
+			if _, err := this.client.GetQueue(ctx, &getReq); err != nil {
+				req := taskspb.UpdateQueueRequest{
+					Queue: &taskspb.Queue{
+						Name: name,
+					},
+				}
+				if _, err := this.client.UpdateQueue(ctx, &req); err != nil {
+					log.Fatal(err)
+				}
 			}
 		})()
 
