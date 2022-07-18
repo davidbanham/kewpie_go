@@ -121,16 +121,15 @@ func (this Kewpie) SubscribeHTTP(secret string, handler types.Handler, errorHand
 			if !requeue {
 				w.WriteHeader(http.StatusAccepted)
 				w.Write([]byte("task failed but should not be retried"))
-				return
 			} else {
 				w.WriteHeader(http.StatusInternalServerError)
 				w.Write([]byte("error handling task"))
-				return
 			}
 			errorHandler(r.Context(), types.HTTPError{
 				Status: http.StatusInternalServerError,
 				Error:  handlerErr,
 			})
+			return
 		}
 
 		w.WriteHeader(http.StatusOK)
