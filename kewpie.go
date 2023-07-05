@@ -83,7 +83,6 @@ func (this Kewpie) Subscribe(ctx context.Context, queueName string, handler type
 func (this Kewpie) SubscribeHTTP(secret string, handler types.Handler, errorHandler func(context.Context, types.HTTPError)) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		task := types.Task{}
-
 		if err := task.FromHTTP(r); err != nil {
 			errorHandler(r.Context(), types.HTTPError{
 				Status: http.StatusBadRequest,
@@ -95,6 +94,7 @@ func (this Kewpie) SubscribeHTTP(secret string, handler types.Handler, errorHand
 		if task.RunAt.After(time.Now().Add(30 * time.Second)) {
 			// We use an internal context here since we don't want the republish to fail if the external is cancelled
 			ctx := context.Background()
+			task.Delay = 0
 			if err := this.Publish(ctx, task.QueueName, &task); err != nil {
 				errorHandler(r.Context(), types.HTTPError{
 					Status: http.StatusInternalServerError,

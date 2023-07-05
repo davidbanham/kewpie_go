@@ -1,10 +1,13 @@
 package kewpie
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
+	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
@@ -674,4 +677,60 @@ func TestPublishMiddleware(t *testing.T) {
 	}
 
 	cancel()
+}
+
+func TestSubscribeHTTP(t *testing.T) {
+	kewpie := Kewpie{}
+
+	if err := kewpie.Connect("memory", []string{queueName}, nil); err != nil {
+		log.Fatal("Error connecting to queue")
+	}
+
+	middlewareFired := false
+
+	inOneHour := time.Now().Add(time.Hour)
+
+	kewpie.AddPublishMiddleware(func(ctx context.Context, task *Task, passedQueueName string) error {
+		assert.True(t, inOneHour.Equal(task.RunAt))
+		assert.InDelta(t, task.Delay, time.Hour, float64(30*time.Second))
+		middlewareFired = true
+		return nil
+	})
+
+	secret := uuid.NewV4().String()
+
+	taskHandler := &testHandler{
+		handleFunc: func(task types.Task) (requeue bool, err error) {
+			assert.Fail(t, "Handler should not fire")
+			return false, nil
+		},
+	}
+
+	errorHandler := func(ctx context.Context, err types.HTTPError) {
+		assert.FailNow(t, "Erorr handler called", err)
+	}
+
+	handler := kewpie.SubscribeHTTP(secret, taskHandler, errorHandler)
+
+	task := types.Task{
+		QueueName: "foo",
+		Body:      `{"Sup": "woof"}`,
+		Tags:      map[string]string{"handler_url": "http://example.com"},
+		RunAt:     inOneHour,
+		Delay:     time.Hour * 24 * 30,
+	}
+
+	task.Sign(secret)
+
+	payload, err := json.Marshal(task)
+	assert.Nil(t, err)
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "http://example.com/foo", bytes.NewReader(payload))
+
+	go (func() {
+		handler(rr, req)
+	})()
+	time.Sleep(1 * time.Second)
+	assert.True(t, middlewareFired)
 }
