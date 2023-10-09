@@ -23,6 +23,7 @@ type Task struct {
 	Tags         Tags          `json:"tags"`
 	QueueName    string        `json:"queue_name"`
 	Token        string        `json:"token"`
+	Timeout      time.Duration `json:"timeout"`
 }
 
 type Tags map[string]string

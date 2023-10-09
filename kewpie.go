@@ -67,6 +67,10 @@ func (this Kewpie) Publish(ctx context.Context, queueName string, payload *types
 
 	payload.Delay = payload.RunAt.Sub(time.Now())
 
+	if payload.Timeout == 0 {
+		payload.Timeout = 10 * time.Minute
+	}
+
 	for _, f := range this.publishMiddleware {
 		if err := f(ctx, payload, queueName); err != nil {
 			return err

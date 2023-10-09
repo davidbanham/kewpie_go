@@ -11,6 +11,7 @@ import (
 	"time"
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
+	duration "github.com/golang/protobuf/ptypes/duration"
 	"google.golang.org/api/iterator"
 	taskspb "google.golang.org/genproto/googleapis/cloud/tasks/v2"
 
@@ -117,7 +118,8 @@ func (this CloudTasks) Publish(ctx context.Context, queueName string, payload *t
 	req := &taskspb.CreateTaskRequest{
 		Parent: this.paths[sanitise(queueName)],
 		Task: &taskspb.Task{
-			ScheduleTime: ts,
+			ScheduleTime:     ts,
+			DispatchDeadline: &duration.Duration{Seconds: int64(payload.Timeout.Seconds())},
 			MessageType: &taskspb.Task_HttpRequest{
 				HttpRequest: &taskspb.HttpRequest{
 					Headers: map[string]string{
