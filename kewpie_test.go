@@ -655,7 +655,7 @@ func TestPublishMiddleware(t *testing.T) {
 	}
 
 	go (func() {
-		assert.Equal(t, types.NotImplemented, kewpie.Subscribe(ctx, queueName, handler))
+		kewpie.Subscribe(ctx, queueName, handler)
 	})()
 
 	time.Sleep(1 * time.Second)
@@ -669,6 +669,83 @@ func TestPublishMiddleware(t *testing.T) {
 	}
 	if !match2 {
 		t.Log("Didn't match 2")
+		t.Fail()
+	}
+	if !middlewareFired {
+		t.Log("Middleware didn't fire")
+		t.Fail()
+	}
+
+	cancel()
+}
+
+func TestRenamer(t *testing.T) {
+	kewpie := Kewpie{}
+
+	uniq1 := uuid.NewV4().String()
+	uniq2 := uuid.NewV4().String()
+
+	kewpie.RenameFunc = func(in string) string {
+		assert.Equal(t, queueName, in)
+		return uniq2 + in
+	}
+
+	if err := kewpie.Connect("memory", []string{queueName}, nil); err != nil {
+		log.Fatal("Error connecting to queue")
+	}
+
+	middlewareFired := false
+
+	kewpie.AddPublishMiddleware(func(ctx context.Context, task *Task, passedQueueName string) error {
+		sd := supDawg{}
+		task.Unmarshal(&sd)
+		assert.Equal(t, uniq1, sd.Sup)
+		assert.NotEqual(t, passedQueueName, queueName)
+		assert.Equal(t, passedQueueName, uniq2+queueName)
+		middlewareFired = true
+		return nil
+	})
+
+	pubTask1 := types.Task{
+		NoExpBackoff: true,
+	}
+	if err := pubTask1.Marshal(supDawg{
+		Sup: uniq1,
+	}); err != nil {
+		t.Fatal("Err in marshaling")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	assert.Nil(t, kewpie.Publish(ctx, queueName, &pubTask1))
+
+	fired := 0
+	var match bool
+
+	handler := &testHandler{
+		handleFunc: func(task types.Task) (requeue bool, err error) {
+			fired = fired + 1
+			monty := supDawg{}
+			task.Unmarshal(&monty)
+
+			if monty.Sup == uniq1 {
+				match = true
+			}
+			return false, nil
+		},
+	}
+
+	go (func() {
+		kewpie.Subscribe(ctx, queueName, handler)
+	})()
+
+	time.Sleep(1 * time.Second)
+	if fired < 1 {
+		t.Log("Didn't fire enough")
+		t.Fail()
+	}
+	if !match {
+		t.Log("Didn't match 1")
 		t.Fail()
 	}
 	if !middlewareFired {

@@ -18,6 +18,7 @@ import (
 )
 
 type Kewpie struct {
+	RenameFunc        func(string) string
 	queues            []string
 	backend           Backend
 	id                string
@@ -50,7 +51,15 @@ type Backend interface {
 	MaxConcurrentDrainWorkers() int
 }
 
+func (this Kewpie) rename(queueName string) string {
+	if this.RenameFunc == nil {
+		return queueName
+	}
+	return this.RenameFunc(queueName)
+}
+
 func (this Kewpie) Publish(ctx context.Context, queueName string, payload *types.Task) error {
+	queueName = this.rename(queueName)
 	if payload.Tags == nil {
 		payload.Tags = Tags{}
 	}
@@ -81,6 +90,7 @@ func (this Kewpie) Publish(ctx context.Context, queueName string, payload *types
 }
 
 func (this Kewpie) Subscribe(ctx context.Context, queueName string, handler types.Handler) error {
+	queueName = this.rename(queueName)
 	return this.backend.Subscribe(ctx, queueName, handler)
 }
 
@@ -142,14 +152,19 @@ func (this Kewpie) SubscribeHTTP(secret string, handler types.Handler, errorHand
 }
 
 func (this Kewpie) Suck(ctx context.Context, queueName string, handler types.Handler) error {
+	queueName = this.rename(queueName)
 	return this.backend.Suck(ctx, queueName, handler)
 }
 
 func (this Kewpie) Pop(ctx context.Context, queueName string, handler types.Handler) error {
+	queueName = this.rename(queueName)
 	return this.backend.Pop(ctx, queueName, handler)
 }
 
 func (this *Kewpie) Connect(backend string, queues []string, connection interface{}) error {
+	for i, queue := range queues {
+		queues[i] = this.rename(queue)
+	}
 	this.queues = queues
 	this.id = uuid.NewV4().String()
 	this.bufferID = "kewpie_buffer_" + this.id
@@ -183,10 +198,12 @@ func (this Kewpie) Disconnect() error {
 }
 
 func (this Kewpie) Purge(ctx context.Context, queueName string) error {
+	queueName = this.rename(queueName)
 	return this.backend.Purge(ctx, queueName)
 }
 
 func (this Kewpie) PurgeMatching(ctx context.Context, queueName, substr string) error {
+	queueName = this.rename(queueName)
 	return this.backend.PurgeMatching(ctx, queueName, substr)
 }
 
@@ -203,6 +220,7 @@ func (this Kewpie) PrepareContext(ctx context.Context) context.Context {
 }
 
 func (this Kewpie) Buffer(ctx context.Context, queueName string, payload *Task) error {
+	queueName = this.rename(queueName)
 	if this.bufferID == "" {
 		return fmt.Errorf("Queue not initialised")
 	}
