@@ -220,7 +220,7 @@ func (this Kewpie) PrepareContext(ctx context.Context) context.Context {
 }
 
 func (this Kewpie) Buffer(ctx context.Context, queueName string, payload *Task) error {
-	queueName = this.rename(queueName)
+	// Don't run the rename func here since it will happen in Publish
 	if this.bufferID == "" {
 		return fmt.Errorf("Queue not initialised")
 	}
