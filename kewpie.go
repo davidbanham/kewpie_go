@@ -105,6 +105,14 @@ func (this Kewpie) SubscribeHTTP(secret string, handler types.Handler, errorHand
 			return
 		}
 
+		if err := task.VerifySignature(secret); err != nil {
+			errorHandler(r.Context(), types.HTTPError{
+				Status: http.StatusBadRequest,
+				Error:  fmt.Errorf("Invalid token: %w", err),
+			})
+			return
+		}
+
 		if task.RunAt.After(time.Now().Add(30 * time.Second)) {
 			// We use an internal context here since we don't want the republish to fail if the external is cancelled
 			ctx := context.Background()
@@ -119,14 +127,6 @@ func (this Kewpie) SubscribeHTTP(secret string, handler types.Handler, errorHand
 
 			w.WriteHeader(http.StatusCreated)
 			w.Write([]byte("rescheduled"))
-			return
-		}
-
-		if err := task.VerifySignature(secret); err != nil {
-			errorHandler(r.Context(), types.HTTPError{
-				Status: http.StatusBadRequest,
-				Error:  fmt.Errorf("Invalid token: %w", err),
-			})
 			return
 		}
 
