@@ -12,8 +12,10 @@ import (
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
 	duration "github.com/golang/protobuf/ptypes/duration"
+	"github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/iterator"
 	taskspb "google.golang.org/genproto/googleapis/cloud/tasks/v2"
+	"google.golang.org/grpc/codes"
 
 	"github.com/davidbanham/kewpie_go/v3/types"
 	"github.com/davidbanham/required_env"
@@ -139,7 +141,17 @@ func (this CloudTasks) Publish(ctx context.Context, queueName string, payload *t
 
 	req.Task.GetHttpRequest().Body = taskJSON
 
-	createdTask, err := this.client.CreateTask(ctx, req)
+	retryPolicyOption := gax.WithRetry(func() gax.Retryer {
+		return gax.OnCodes([]codes.Code{
+			codes.Unavailable, // Specific code for network/transient issues
+		}, gax.Backoff{
+			Initial:    1 * time.Second,  // Start with a 1-second delay
+			Max:        10 * time.Second, // Maximum delay of 10 seconds
+			Multiplier: 1.5,              // Increase delay by 50% each time
+		})
+	})
+
+	createdTask, err := this.client.CreateTask(ctx, req, retryPolicyOption)
 	if err != nil {
 		return fmt.Errorf("cloudtasks.CreateTask: %v", err)
 	}
