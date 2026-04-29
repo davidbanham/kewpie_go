@@ -18,8 +18,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-//var backends = []string{"sqs"}
-//var backends = []string{"memory", "postgres", "sqs"}
+// var backends = []string{"sqs"}
+// var backends = []string{"memory", "postgres", "sqs"}
 var backends = []testBackend{testBackend{"memory", nil}, testBackend{"postgres", nil}}
 
 //var backends = []testBackend{testBackend{"google_cloud_tasks", nil}}
