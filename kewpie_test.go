@@ -392,7 +392,7 @@ func TestRequeueing(t *testing.T) {
 					if task.Attempts > 3 {
 						return false, nil
 					}
-					return true, fmt.Errorf("Keep going!" + backend.Identifier)
+					return true, fmt.Errorf("Keep going! %s", backend.Identifier)
 				}
 				if monty.Sup == uniq2 {
 					matched2 += 1
